@@ -1,0 +1,10 @@
+*.in
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.sub
+configure
+depcomp
+missing
+src/vc2reference-stdint.h
