@@ -142,10 +142,12 @@ namespace {
       return stream.iword(i);
   }
 
+#if 0
   long& is_text(std::ios_base& stream) {
       static const int i = std::ios_base::xalloc();
       return stream.iword(i);
   }
+#endif
 
   long& zero_level_set(std::ios_base& stream) {
       static const int i = std::ios_base::xalloc();
