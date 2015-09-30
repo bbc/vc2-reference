@@ -205,8 +205,8 @@ try { //Giant try block around all code to get error messages
     case END_OF_SEQUENCE:
       if (verbose) {
         clog << "End of Sequence after " << frame << " frames, exiting" << endl;
-        return EXIT_SUCCESS;
       }
+      return EXIT_SUCCESS;
     case LD_PICTURE:
       {
         if (verbose) clog << "Parsing Picture Header" << endl;
@@ -273,7 +273,7 @@ try { //Giant try block around all code to get error messages
           cerr << "\rFailed to read compressed frame" << endl;
           continue;
         }
-        else clog << endl;
+        else if (verbose) clog << endl;
     
         // Reorder quantised coefficients from slice order to transform order
         if (verbose) clog << "Merge slices into full picture" << endl;
@@ -433,7 +433,7 @@ try { //Giant try block around all code to get error messages
           cerr << "\rFailed to read compressed frame" << endl;
           continue;
         }
-        else clog << endl;
+        else if (verbose) clog << endl;
     
         // Reorder quantised coefficients from slice order to transform order
         if (verbose) clog << "Merge slices into full picture" << endl;
