@@ -339,6 +339,8 @@ try { //Giant try block around all code to get error messages
           pic = 0;
         }
         else { //progressive
+          const PictureFormat frameFormat(height, width, chromaFormat);
+          outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
           outFrame->frame(outPicture);
         }
 
@@ -498,6 +500,8 @@ try { //Giant try block around all code to get error messages
           pic = 0;
         }
         else { //progressive
+          const PictureFormat frameFormat(height, width, chromaFormat);
+          outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
           outFrame->frame(outPicture);
         }
 
