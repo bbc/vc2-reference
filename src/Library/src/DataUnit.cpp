@@ -238,6 +238,8 @@ struct video_format {
   bool custom_dimensions_flag;
   int frame_width;
   int frame_height;
+  bool custom_color_diff_format_flag;
+  int color_diff_format;
   bool custom_scan_format_flag;
   int source_sampling;
   bool custom_signal_range_flag;
@@ -270,6 +272,8 @@ video_format::video_format(const SequenceHeader &fmt)
     , custom_dimensions_flag (false)
     , frame_width (0)
     , frame_height (0)
+    , custom_color_diff_format_flag(false)
+    , color_diff_format(0)
     , custom_scan_format_flag (false)
     , source_sampling (0)
     , custom_signal_range_flag (false)
@@ -361,6 +365,10 @@ video_format::video_format(const SequenceHeader &fmt)
       frame_width  = fmt.width;
       frame_height = fmt.height;
     }
+    if (fmt.chromaFormat != CF420) {
+      custom_color_diff_format_flag = true;
+      color_diff_format = fmt.chromaFormat;
+    }
     if (fmt.frameRate != FR24000_1001) {
       custom_frame_rate_flag = true;
       frame_rate = fmt.frameRate;
@@ -399,7 +407,22 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
        << UnsignedVLC(fmt.frame_height);
   }
 
-  ss << Boolean(false); // custom_color_diff_sampling_format
+  ss << Boolean(fmt.custom_color_diff_format_flag);
+  if (fmt.custom_color_diff_format_flag) {
+    switch (fmt.color_diff_format) {
+    case CF422:
+      ss << UnsignedVLC(1);
+      break;
+    case CF420:
+      ss << UnsignedVLC(2);
+      break;
+    case CF444:
+    case RGB:
+    default:
+      ss << UnsignedVLC(0);
+      break;
+    }
+  }
 
   ss << Boolean(fmt.custom_scan_format_flag);
   if (fmt.custom_scan_format_flag) {
@@ -456,7 +479,14 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
     ss << UnsignedVLC(fmt.bitdepth);
   }
 
-  ss << Boolean(false); // custom_color_spec_flag
+  if (fmt.custom_color_diff_format_flag && fmt.color_diff_format == RGB) {
+    ss << Boolean(true);
+    ss << UnsignedVLC(0); // Custom
+    ss << Boolean(false); // No custom primaries
+    ss << Boolean(true) << UnsignedVLC(3); // RGB Matrix
+    ss << Boolean(false); // No custom gamma
+  } else 
+    ss << Boolean(false); // custom_color_spec_flag
 
   ss << UnsignedVLC(fmt.picture_coding_mode);
 
@@ -491,8 +521,23 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
 
   Boolean custom_color_diff_format_flag;
   stream >> custom_color_diff_format_flag;
+  fmt.custom_color_diff_format_flag = custom_color_diff_format_flag;
   if (custom_color_diff_format_flag) {
-    throw std::logic_error("DataUnitIO: custom color diff format flag set, shouldn't be");
+    UnsignedVLC color_diff_format;
+    stream >> color_diff_format;
+    switch ((unsigned int)color_diff_format) {
+    case 0:
+      fmt.color_diff_format = CF444;
+      break;
+    case 1:
+      fmt.color_diff_format = CF422;
+      break;
+    case 2:
+      fmt.color_diff_format = CF420;
+      break;
+    default:
+      throw std::logic_error("DataUnitIO: Invalid Color Format");
+    }
   }
 
   Boolean custom_scan_format_flag;
@@ -551,7 +596,33 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   Boolean custom_color_spec_flag;
   stream >> custom_color_spec_flag;
   if (custom_color_spec_flag) {
-    throw std::logic_error("DataUnitIO: custom_color_spec_flag set, shouldn't be");
+    UnsignedVLC custom_color_spec_index;
+    stream >> custom_color_spec_index;
+    if (custom_color_spec_index == 0) {
+      Boolean custom_color_primaries_flag, custom_color_matrix_flag, custom_transfer_function_flag;
+      stream >> custom_color_primaries_flag;
+      if (custom_color_primaries_flag) {
+        UnsignedVLC color_primaries;
+        stream >> color_primaries;
+      }
+
+      stream >> custom_color_matrix_flag;
+      if (custom_color_matrix_flag) {
+        UnsignedVLC color_matrix;
+        stream >> color_matrix;
+
+        if (color_matrix == 3) {
+          fmt.custom_color_diff_format_flag = true;
+          fmt.color_diff_format = RGB;
+        }
+      }
+
+      stream >> custom_transfer_function_flag;
+      if (custom_transfer_function_flag) {
+        UnsignedVLC transfer_function;
+        stream >> transfer_function;
+      }
+    }
   }
 
   
@@ -630,9 +701,13 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   if ((unsigned long) next_parse_offset == 0) {
     d.strm.str(std::string());
   } else {
-    char buf[((unsigned long) next_parse_offset) - 13];
-    stream.read(buf, sizeof(buf));
-    d.strm.str(std::string(buf, sizeof(buf)));
+    int bufsize = ((unsigned long) next_parse_offset) - 13;
+    char *buf = new char[bufsize];
+    if (buf == NULL)
+      throw std::logic_error("DataUnitIO: Couldn't allocate memory for Data Unit");
+    stream.read(buf, bufsize);
+    d.strm.str(std::string(buf, bufsize));
+    delete[] buf;
   }
 
   Bytes prefix(4);
@@ -714,6 +789,9 @@ SequenceHeader & operator << (SequenceHeader &hdr, video_format &fmt) {
   if (fmt.custom_dimensions_flag) {
     hdr.width = fmt.frame_width;
     hdr.height = fmt.frame_height;
+  }
+  if (fmt.custom_color_diff_format_flag) {
+    hdr.chromaFormat = (ColourFormat)fmt.color_diff_format;
   }
   if (fmt.custom_scan_format_flag) {
     if (fmt.source_sampling == 0)
