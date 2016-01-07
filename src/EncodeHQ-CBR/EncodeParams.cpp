@@ -90,6 +90,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
     ValueArg<int> cla_framerate("r", "framerate", "Frame Rate ( 1 = 24/1.001, 2 = 24, 3 = 25, 4 = 30/1.001, 5 = 30, 6 = 50, 7 = 60/1.001, 8 = 60, 9 = 15/1.001, 10 = 25/2, 11 = 48 (default 3)", false, 3, "integer", cmd);
     ValueArg<int> cla_sliceScalar("S", "scalar", "Slice Size Scalar (default 1)", false, 1, "integer", cmd);
+    ValueArg<int> cla_slicePrefix("P", "prefix", "Slice Prefix Bytes (default 0)", false, 0, "integer", cmd);
 
     // Parse the argv array
     cmd.parse(argc, argv);
@@ -115,6 +116,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     const Output output = cla_output.getValue();
     const int frame_rate = cla_framerate.getValue();
     const int slice_scalar = cla_sliceScalar.getValue();
+    const int slice_prefix = cla_slicePrefix.getValue();
 
     // Check for valid combinations of parameters and options
     if ((chromaFormat==RGB) && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
@@ -161,6 +163,10 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
       throw std::invalid_argument("slice scalar must be >0");
     }
 
+    if (slice_prefix < 0) {
+      throw std::invalid_argument("slice prefix must be >=0");
+    }
+
     params.inFileName = inFileName;
     params.outFileName = outFileName;
     params.verbose = verbose;
@@ -179,6 +185,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     params.compressedBytes = compressedBytes;
     params.output = output;
     params.slice_scalar = slice_scalar;
+    params.slice_prefix = slice_prefix;
 
     switch (frame_rate) {
     case 1:

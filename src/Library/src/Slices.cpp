@@ -191,6 +191,11 @@ namespace {
       return stream.iword(i);
   }
 
+   long& slice_prefix(std::ios_base& stream) {
+      static const int i = std::ios_base::xalloc();
+      return stream.iword(i);
+  }
+
   long& single_slice_size(std::ios_base& stream) {
       static const int i = std::ios_base::xalloc();
       return stream.iword(i);
@@ -309,7 +314,12 @@ namespace {
     const BlockVector vSliceSubbands = split_into_subbands(s.yuvSlice.c2(), s.waveletDepth);
     const int numberOfSubbands = 3*s.waveletDepth+1;
     const int scalar = slice_scalar(stream);
+    const int prefix = slice_prefix(stream);
 
+    for (int n = 0; n < prefix; n++) {
+      stream << Bytes(1, 0x00);
+    }
+    
     stream << Bytes(1, s.qIndex);
 
     // Output first (y/luma) component
@@ -375,8 +385,14 @@ namespace {
     BlockVector vSliceSubbands = split_into_subbands(s.yuvSlice.c2(), s.waveletDepth);
     const int numberOfSubbands = 3*s.waveletDepth+1;
     const int scalar = slice_scalar(stream);
+    const int prefix = slice_prefix(stream);
 
     Bytes bytes(1);
+
+    for (int n = 0; n < prefix; n++) {
+      Bytes z(1);
+      stream >> z;
+    }
 
     Bytes q(1);
     stream >> q;
@@ -453,6 +469,11 @@ namespace {
     const int numberOfSubbands = 3*s.waveletDepth+1;
 
     const int scalar = slice_scalar(stream);
+    const int prefix = slice_prefix(stream);
+
+    for (int n = 0; n < prefix; n++) {
+      stream << Bytes(1, 0x00);
+    }
 
     stream << Bytes(1, s.qIndex);
 
@@ -513,7 +534,13 @@ namespace {
     BlockVector vSliceSubbands = split_into_subbands(s.yuvSlice.c2(), s.waveletDepth);
     const int numberOfSubbands = 3*s.waveletDepth+1;
     const int scalar = slice_scalar(stream);
+    const int prefix = slice_prefix(stream);
     Bytes bytes(1);
+
+    for (int n = 0; n < prefix; n++) {
+      Bytes z(1);
+      stream >> z;
+    }
 
     Bytes q(1);
     stream >> q;
@@ -708,6 +735,7 @@ std::istream& operator >> (std::istream& stream, sliceio::lowDelay arg) {
 void sliceio::highQualityCBR::operator()(std::ios_base& stream) const {
   slice_IO_format(stream) = static_cast<long>(HQCBR);
   slice_sizes(stream) = reinterpret_cast<long>(&bytes);
+  slice_prefix(stream) = static_cast<long>(prefix);
   slice_scalar(stream) = static_cast<long>(scalar);
 }
 
@@ -726,6 +754,7 @@ std::istream& operator >> (std::istream& stream, sliceio::highQualityCBR arg) {
 // IO format manipulator to set the high quality CBR IO format
 void sliceio::highQualityVBR::operator()(std::ios_base& stream) const {
   slice_IO_format(stream) = static_cast<long>(HQVBR);
+  slice_prefix(stream) = static_cast<long>(prefix);
   slice_scalar(stream) = static_cast<long>(scalar);
 }
 

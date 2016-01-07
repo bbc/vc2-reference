@@ -135,6 +135,7 @@ try { //Giant try block around all code to get error messages
   const Output output = params.output;
   const FrameRate frame_rate = params.frame_rate;
   const int sliceScalar = params.slice_scalar;
+  const int slicePrefix = params.slice_prefix;
 
   if (verbose) {
     clog << endl;
@@ -371,7 +372,7 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << sliceio::highQualityCBR(bytes, sliceScalar); // Write output in HQ CBR mode
+        outStream << sliceio::highQualityCBR(bytes, slicePrefix, sliceScalar); // Write output in HQ CBR mode
         outStream << outSlices;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
@@ -381,7 +382,6 @@ try { //Giant try block around all code to get error messages
       }
 
       if (output==STREAM) {
-        const int slicePrefix = 0;
         const Slices outSlices(slices, waveletDepth, qIndices);
         const WrappedPicture outWrapped(frame,
                                         kernel,
@@ -394,7 +394,7 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << dataunitio::highQualityCBR(bytes, sliceScalar); // Write output in HQ CBR mode
+        outStream << dataunitio::highQualityCBR(bytes, slicePrefix, sliceScalar); // Write output in HQ CBR mode
         outStream << outWrapped;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;

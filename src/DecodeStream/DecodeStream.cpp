@@ -153,6 +153,7 @@ try { //Giant try block around all code to get error messages
   int xSlices;
   int compressedBytes;
   int sliceScalar;
+  int slicePrefix;
   boost::scoped_ptr<Frame> outFrame;
   
   while (true) {
@@ -372,7 +373,7 @@ try { //Giant try block around all code to get error messages
         if (verbose) clog << "Parsing Picture Header" << endl;
 
         PicturePreamble preamble;
-        du.stream() >> dataunitio::highQualityVBR(1)
+        du.stream() >> dataunitio::highQualityVBR(0, 1)
                     >> preamble;
 
         if (verbose) {
@@ -390,6 +391,7 @@ try { //Giant try block around all code to get error messages
         waveletDepth = preamble.depth;
         kernel = preamble.wavelet_kernel;
         sliceScalar = preamble.slice_size_scalar;
+        slicePrefix = preamble.slice_prefix;
       }
 
       if (!have_seq_hdr) {
@@ -397,8 +399,8 @@ try { //Giant try block around all code to get error messages
       } else {
         // Calculate number of slices per picture
         const int pictureHeight = ( (interlaced) ? height/2 : height);
-        const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
-        const int paddedWidth = paddedSize(width, waveletDepth);
+        const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth, ySlices);
+        const int paddedWidth = paddedSize(width, waveletDepth, xSlices);
 
         // Calculate the quantisation matrix
         const Array1D qMatrix = quantMatrix(kernel, waveletDepth);
@@ -426,7 +428,7 @@ try { //Giant try block around all code to get error messages
             clog << "Reading compressed input frame number " << frame;
         }
         clog.flush(); // Make sure comments written to log file.
-        du.stream() >> sliceio::highQualityVBR(sliceScalar); // Read input in HQ VBR mode
+        du.stream() >> sliceio::highQualityVBR(slicePrefix, sliceScalar); // Read input in HQ VBR mode
         du.stream() >> inSlices; // Read the compressed input picture
         // Check picture was read OK
         if (!du.stream()) {

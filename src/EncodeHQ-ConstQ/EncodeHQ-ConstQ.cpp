@@ -107,6 +107,7 @@ try { //Giant try block around all code to get error messages
   const Output output = params.output;
   const FrameRate frame_rate = params.frame_rate;
   const int sliceScalar = params.slice_scalar;
+  const int slicePrefix = params.slice_prefix;
 
   if (verbose) {
     clog << endl;
@@ -311,7 +312,7 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << sliceio::highQualityVBR(sliceScalar); // Write output in HQ VBR mode
+        outStream << sliceio::highQualityVBR(slicePrefix, sliceScalar); // Write output in HQ VBR mode
         outStream << outSlices;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
@@ -321,8 +322,6 @@ try { //Giant try block around all code to get error messages
       }
 
       if (output==STREAM) { // Output the complete VC-2 stream
-        const int slicePrefix = 0;
-        const int sliceScalar = 1;
         // Package up data for output
         const Slices outSlices(slices, waveletDepth, qIndices);
 
@@ -337,7 +336,7 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << dataunitio::highQualityVBR(sliceScalar); // Write output in HQ VBR mode
+        outStream << dataunitio::highQualityVBR(sliceScalar, sliceScalar); // Write output in HQ VBR mode
         outStream << outWrapped;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;

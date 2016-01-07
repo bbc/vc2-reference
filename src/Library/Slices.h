@@ -91,18 +91,20 @@ namespace sliceio {
 
   class highQualityCBR {
     public:
-      highQualityCBR(const Array2D& b, const int s): bytes(b), scalar(s) {}; 
+      highQualityCBR(const Array2D& b, const int p, const int s): bytes(b), prefix(p), scalar(s) {}; 
       void operator () (std::ios_base& stream) const;
     private:
       const Array2D& bytes;
+      const int prefix;
       const int scalar;
   };
 
   class highQualityVBR {
     public:
-      highQualityVBR(const int s): scalar(s) {}; 
+      highQualityVBR(const int p, const int s): prefix(p), scalar(s) {}; 
       void operator () (std::ios_base& stream) const;
     private:
+      const int prefix;
       const int scalar;
   };
 } // end namespace sliceio

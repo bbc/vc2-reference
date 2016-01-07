@@ -42,6 +42,7 @@ struct ProgramParams {
   enum Output output;
   FrameRate frame_rate;
   int slice_scalar;
+  int slice_prefix;
   std::string error;
 };
 

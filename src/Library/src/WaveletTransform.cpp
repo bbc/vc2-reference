@@ -68,6 +68,13 @@ std::istream& operator>>(std::istream& strm, WaveletKernel& kernel) {
 
 #include "Utils.h"
 
+#define max(a,b) (((a) > (b))?(a):(b))
+
+const int paddedSize(int size, int depth, int slices) {
+  const int cell = max(utils::pow(2, depth), (size + slices - 1)/slices);
+  return cell*((size+cell-1)/cell);
+}
+
 const int paddedSize(int size, int depth) {
   const int cell = utils::pow(2, depth);
   return cell*((size+cell-1)/cell);
@@ -353,7 +360,7 @@ const Array2D merge_subbands(const BlockVector& subbands) {
     picture[indices[Range(offset,pictureHeight,stride)][Range(0,pictureWidth,stride)]] =
       subbands[band++]; //LH subband (Low horizontal, High vertical);
     picture[indices[Range(offset,pictureHeight,stride)][Range(offset,pictureWidth,stride)]] =
-      subbands[band++]; //HH subband (High horizontal, High vertical);
+        subbands[band++]; //HH subband (High horizontal, High vertical);
   }
   return picture;
 }
