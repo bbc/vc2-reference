@@ -83,6 +83,7 @@ try { //Giant try block around all code to get error messages
   const int xSize = params.xSize;
   const Output output = params.output;
   const int sliceScalar = params.slice_scalar;
+  const int slicePrefix = params.slice_prefix;
 
   if (verbose) {
     clog << endl;
@@ -215,7 +216,7 @@ try { //Giant try block around all code to get error messages
           clog << "Reading compressed input frame number " << frame;
       }
       clog.flush(); // Make sure comments written to log file.
-      inStream >> sliceio::highQualityVBR(sliceScalar); // Read input in HQ VBR mode
+      inStream >> sliceio::highQualityVBR(slicePrefix, sliceScalar); // Read input in HQ VBR mode
       inStream >> inSlices; // Read the compressed input picture
       // Check picture was read OK
       if (!inStream) {

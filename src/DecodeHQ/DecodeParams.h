@@ -38,6 +38,7 @@ struct ProgramParams {
   int xSize;
   enum Output output;
   int slice_scalar;
+  int slice_prefix;
   std::string error;
 };
 

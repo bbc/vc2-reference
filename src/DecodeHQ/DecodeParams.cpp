@@ -87,6 +87,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
     ValueArg<int> cla_sliceScalar("S", "scalar", "Slice Size Scalar (default 1)", false, 1, "integer", cmd);
+    ValueArg<int> cla_slicePrefix("P", "prefix", "Slice Prefix Bytes (default 0)", false, 0, "integer", cmd);
 
     // Parse the argv array
     cmd.parse(argc, argv);
@@ -110,6 +111,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     const int xSize = cla_hSliceSize.getValue();
     const Output output = cla_output.getValue();
     const int sliceScalar = cla_sliceScalar.getValue();
+    const int slicePrefix = cla_slicePrefix.getValue();
 
     // Check for valid combinations of parameters and options
     if ((chromaFormat==RGB) && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
@@ -155,6 +157,9 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     if (sliceScalar<1)
       throw std::invalid_argument("Slice Scalar must be 1 or more");
 
+    if (slicePrefix<0)
+      throw std::invalid_argument("Slice Prefix must be 0 or more");
+
 
     params.inFileName = inFileName;
     params.outFileName = outFileName;
@@ -173,6 +178,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     params.xSize = xSize;
     params.output = output;
     params.slice_scalar = sliceScalar;
+    params.slice_prefix = slicePrefix;
 
   }
 
