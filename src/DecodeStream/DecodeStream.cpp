@@ -399,8 +399,8 @@ try { //Giant try block around all code to get error messages
       } else {
         // Calculate number of slices per picture
         const int pictureHeight = ( (interlaced) ? height/2 : height);
-        const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth, ySlices);
-        const int paddedWidth = paddedSize(width, waveletDepth, xSlices);
+        const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
+        const int paddedWidth = paddedSize(width, waveletDepth);
 
         // Calculate the quantisation matrix
         const Array1D qMatrix = quantMatrix(kernel, waveletDepth);
