@@ -84,6 +84,7 @@ const Array2D quantIndices(const Picture& coefficients,
       int trialQ = 63;
       int q = 127;
       int delta = 64;
+      // Binary Search for smallest q that will fit
       while (delta>0) {
         delta >>= 1;
         const Picture trialSlice = quantise_transform_np(slices[row][column], trialQ, qMatrix);
@@ -98,8 +99,20 @@ const Array2D quantIndices(const Picture& coefficients,
           trialQ +=delta;
         }
       }
-      indices[row][column] = q;
+      // Now try a few higher quantisers and check residual values
+      {
+        trialQ = q;
+        long long YSS = yss_for_slice(slices[row][column], trialQ, qMatrix);
+        do {
+          trialQ++;
+          long long trialYSS = yss_for_slice(slices[row][column], trialQ, qMatrix);
+          if (trialYSS > YSS)
+            break;
+          q = trialQ;
+        } while (true);
       }
+      indices[row][column] = q;
+    }
   }
   return indices;
 }
@@ -225,16 +238,16 @@ try { //Giant try block around all code to get error messages
   const int pictureHeight = ( (interlaced) ? height/2 : height);
   const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
   const int paddedWidth = paddedSize(width, waveletDepth);
-  const int ySlices = paddedPictureHeight/yTransformSize;
-  const int xSlices = paddedWidth/xTransformSize;
-  if (paddedPictureHeight != (ySlices*yTransformSize) ) {
+  const int ySlices = (paddedPictureHeight + yTransformSize - 1)/yTransformSize;
+  const int xSlices = (paddedWidth + xTransformSize - 1)/xTransformSize;
+  /*  if (paddedPictureHeight != (ySlices*yTransformSize) ) {
     throw std::logic_error("Padded picture height is not divisible by slice height");
 	  return EXIT_FAILURE;
   } 
   if (paddedWidth != (xSlices*xTransformSize) ) {
     throw std::logic_error("Padded width is not divisible by slice width");
 	  return EXIT_FAILURE;
-  }
+    }*/
 
   if (verbose) {
     clog << "Vertical slices per picture          = " << ySlices << endl;

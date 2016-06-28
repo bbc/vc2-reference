@@ -113,4 +113,8 @@ const Picture inverse_quantise_transform_np(const Picture& qCoeffs,
                                             const Array2D& qIndices,
                                             const Array1D& qMatrix);
 
+const long long yss_for_slice(const Picture &inPicture,
+                              const int qIndex,
+                              const Array1D& qMatrix);
+
 #endif //QUANTISATION_14MAY10

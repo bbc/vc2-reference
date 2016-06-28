@@ -514,6 +514,19 @@ const Array2D quantise_transform_np(const Array2D& coefficients,
   return merge_subbands(subbands);
 }
 
+const Array2D inverse_quantise_block(const Array2D& block, int q) {
+  // Construct a new array with same size as block
+  Array2D inverseQuantisedBlock(block.ranges());
+  const int blockHeight = block.shape()[0];
+  const int blockWidth = block.shape()[1];
+  for (int y=0; y<blockHeight; ++y) {
+    for (int x=0; x<blockWidth; ++x) {
+      inverseQuantisedBlock[y][x] = scale(block[y][x], q);
+    }
+  }
+  return inverseQuantisedBlock;
+}
+
 const Array2D inverse_quantise_transform_np(const Array2D& qCoeffs,
                                             const Array2D& qIndices,
                                             const Array1D& qMatrix) {
@@ -524,6 +537,20 @@ const Array2D inverse_quantise_transform_np(const Array2D& qCoeffs,
     aQIndices[band] = adjust_quant_indices(qIndices, qMatrix[band]);
   }
   return inverse_quantise_subbands_np(qCoeffs, aQIndices);
+}
+
+const Array2D inverse_quantise_transform_np(const Array2D& qCoeffs,
+                                            const int qIndex,
+                                            const Array1D& qMatrix) {
+  // TO DO: Check numberOfSubbands=3n+1 ?
+  const int numberOfSubbands = qMatrix.size();
+  const int waveletDepth = (numberOfSubbands-1)/3;
+  BlockVector subbands = split_into_subbands(qCoeffs, waveletDepth);
+  for (int band=0; band<numberOfSubbands; ++band) {
+    const int aQIndex = adjust_quant_index(qIndex, qMatrix[band]);
+    subbands[band] = inverse_quantise_block(subbands[band], aQIndex);
+  }
+  return merge_subbands(subbands);
 }
 
 // Quantise in-place transformed coefficients of a whole picture as slices
@@ -581,4 +608,31 @@ const Picture inverse_quantise_transform_np(const Picture& qCoeffs,
   result.c1(inverse_quantise_transform_np(qCoeffs.c1(), qIndices, qMatrix));
   result.c2(inverse_quantise_transform_np(qCoeffs.c2(), qIndices, qMatrix));
   return result;
+}
+
+const Picture inverse_quantise_transform_np(const Picture& qCoeffs,
+                                            const int qIndex,
+                                            const Array1D& qMatrix) {
+  Picture result(qCoeffs.format());
+  result.y(inverse_quantise_transform_np(qCoeffs.y(), qIndex, qMatrix));
+  result.c1(inverse_quantise_transform_np(qCoeffs.c1(), qIndex, qMatrix));
+  result.c2(inverse_quantise_transform_np(qCoeffs.c2(), qIndex, qMatrix));
+  return result;
+}
+
+const long long yss_for_slice(const Picture &inPicture,
+                              const int qIndex,
+                              const Array1D& qMatrix) {
+  Picture trialSlice = quantise_transform_np(inPicture, qIndex, qMatrix);
+  Picture restoredSlice = inverse_quantise_transform_np(trialSlice, qIndex, qMatrix);
+  Array2D yDiff(restoredSlice.format().lumaShape());
+  std::transform(inPicture.y().data(), inPicture.y().data()+inPicture.y().num_elements(),
+                 restoredSlice.y().data(),
+                 yDiff.data(),
+                 std::minus<int>() );
+  std::transform(yDiff.data(), yDiff.data()+yDiff.num_elements(),
+                 yDiff.data(),
+                 yDiff.data(),
+                 std::multiplies<int>() );
+  return std::accumulate(yDiff.data(), yDiff.data()+yDiff.num_elements(), 0LL);
 }
