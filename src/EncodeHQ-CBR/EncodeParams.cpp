@@ -49,8 +49,13 @@ namespace TCLAP {
 ProgramParams getCommandLineParams(int argc, char * argv[], const char * details[]) {
 
   const char * const version = details[0];
-  const char * const summary = details[1];
-  const char * const description = details[2];
+  std::string description;
+
+  {
+    std::stringstream ss;
+    ss << details[1] << "\n\n" << details[2] << "\n";
+    description = ss.str();
+  }
 
   if (argc<2) {
     clog << "Version: " << version << endl;
@@ -64,7 +69,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
   try {
 
     // Define tclap command line object
-    CmdLine cmd(summary, ' ', version);
+    CmdLine cmd(description, ' ', version);
 
     // Define tclap command line parameters (and add them to tclap command line)
     UnlabeledValueArg<string> inFile("inFile", "Input file name (use \"-\" for standard input)", true, "-", "string", cmd);
