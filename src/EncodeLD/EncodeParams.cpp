@@ -94,6 +94,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
     ValueArg<int> cla_framerate("r", "framerate", "Frame Rate ( 1 = 24/1.001, 2 = 24, 3 = 25, 4 = 30/1.001, 5 = 30, 6 = 50, 7 = 60/1.001, 8 = 60, 9 = 15/1.001, 10 = 25/2, 11 = 48 (default 3)", false, 3, "integer", cmd);
+    ValueArg<int> cla_fragmentLength("F", "fragment", "Maximum length in bytes for picture fragments (default = 0 = don't fragment)", false, 0, "integer", cmd);
 
     // Parse the argv array
     cmd.parse(argc, argv);
@@ -118,6 +119,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     const int compressedBytes = cla_compressedBytes.getValue();
     const Output output = cla_output.getValue();
     const int frame_rate = cla_framerate.getValue();
+    const int fragment_length = cla_fragmentLength.getValue();
 
     // Check for valid combinations of parameters and options
     if ((chromaFormat==RGB) && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
@@ -177,6 +179,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     params.xSize = xSize;
     params.compressedBytes = compressedBytes;
     params.output = output;
+    params.fragment_length = fragment_length;
 
     switch (frame_rate) {
     case 1:

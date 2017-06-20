@@ -43,6 +43,7 @@ struct ProgramParams {
   FrameRate frame_rate;
   int slice_scalar;
   int slice_prefix;
+  int fragment_length;
   std::string error;
 };
 

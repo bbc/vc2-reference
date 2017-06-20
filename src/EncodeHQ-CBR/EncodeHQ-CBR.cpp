@@ -149,6 +149,7 @@ try { //Giant try block around all code to get error messages
   const FrameRate frame_rate = params.frame_rate;
   const int sliceScalar = params.slice_scalar;
   const int slicePrefix = params.slice_prefix;
+  const int fragmentLength = params.fragment_length;
 
   if (verbose) {
     clog << endl;
@@ -286,6 +287,8 @@ try { //Giant try block around all code to get error messages
   if (output==STREAM) {
     if (verbose) clog << endl << "Writing Sequence Header" << endl << endl;
     outStream << dataunitio::start_sequence;
+    if (fragmentLength > 0)
+      outStream << dataunitio::fragmentedPictures(fragmentLength);
     outStream << SequenceHeader(PROFILE_HQ, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
   }
   while (true) {

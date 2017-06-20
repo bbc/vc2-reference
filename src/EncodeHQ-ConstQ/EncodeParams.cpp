@@ -92,7 +92,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0 or RGB)", true, UNKNOWN, "string", cmd);
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
-    ValueArg<int> cla_framerate("r", "framerate", "Frame Rate ( 1 = 24/1.001, 2 = 24, 3 = 25, 4 = 30/1.001, 5 = 30, 6 = 50, 7 = 60/1.001, 8 = 60, 9 = 15/1.001, 10 = 25/2, 11 = 48 (default 3)", false, 3, "integer", cmd);
+    ValueArg<int> cla_framerate("r", "framerate", "Frame Rate ( 1 = 24/1.001, 2 = 24, 3 = 25, 4 = 30/1.001, 5 = 30, 6 = 50, 7 = 60/1.001, 8 = 60, 9 = 15/1.001, 10 = 25/2, 11 = 48, 12=48/1.001, 13=96, 14=100, 15=120/1.001, 16=120(default 3)", false, 3, "integer", cmd);
     ValueArg<int> cla_sliceScalar("S", "scalar", "Slice size Scalar (default 1)", false, 1, "integer", cmd);
     ValueArg<int> cla_slicePrefix("P", "prefix", "Slice Prefix Bytes (default 0)", false, 0, "integer", cmd);
 
@@ -222,6 +222,21 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
       break;
     case 11:
       params.frame_rate = FR48;
+      break;
+    case 12:
+      params.frame_rate = FR48_1001;
+      break;
+    case 13:
+      params.frame_rate = FR96;
+      break;
+    case 14:
+      params.frame_rate = FR100;
+      break;
+    case 15:
+      params.frame_rate = FR120_1001;
+      break;
+    case 16:
+      params.frame_rate = FR120;
       break;
     default:
       params.frame_rate = FR0;

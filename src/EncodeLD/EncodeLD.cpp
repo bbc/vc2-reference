@@ -98,6 +98,7 @@ try { //Giant try block around all code to get error messages
   const int compressedBytes = params.compressedBytes;
   const Output output = params.output;
   const FrameRate frame_rate = params.frame_rate;
+  const int fragmentLength = params.fragment_length;
 
   if (verbose) {
     clog << endl;
@@ -235,6 +236,8 @@ try { //Giant try block around all code to get error messages
   if (output==STREAM) {
     if (verbose) clog << endl << "Writing Sequence Header" << endl << endl;
     outStream << dataunitio::start_sequence;
+    if (fragmentLength > 0)
+      outStream << dataunitio::fragmentedPictures(fragmentLength);
     outStream << SequenceHeader(PROFILE_LD, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
   }
   while (true) {

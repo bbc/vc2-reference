@@ -63,17 +63,35 @@ class SliceQuantiser {
 //**** Slice IO declarations ****//
 
 struct Slices { 
-    Slices(const PictureArray& yuvSlices, const int waveletDepth, const Array2D& qIndices);
-    Slices(const PictureFormat& pictureFormat, int waveletDepth,
-           int ySlices, int xSlices);
-    PictureArray yuvSlices;
-    const int waveletDepth;
-    Array2D qIndices;
+  Slices(const PictureArray& yuvSlices, const int waveletDepth, const Array2D& qIndices);
+  Slices(const PictureFormat& pictureFormat, int waveletDepth,
+         int ySlices, int xSlices);
+  PictureArray yuvSlices;
+  const int waveletDepth;
+  Array2D qIndices;
+
+  int nSlices() { return yuvSlices.shape()[0]*yuvSlices.shape()[1]; }
 };
 
 std::ostream& operator << (std::ostream& stream, const Slices& s);
 
 std::istream& operator >> (std::istream& stream, Slices& s);
+
+struct Slice {
+    Slice(const Picture& p, int d, int i):
+      yuvSlice(p), waveletDepth(d), qIndex(i) {};
+    Slice(const PictureFormat& f, int d):
+      yuvSlice(f), waveletDepth(d) {};
+    Picture yuvSlice;
+    const int waveletDepth;
+    int qIndex;
+};
+
+std::ostream& operator << (std::ostream& stream, const Slice& s);
+
+std::istream& operator >> (std::istream& stream, Slice& s);
+
+class Fragment;
 
 namespace sliceio {
 
@@ -107,7 +125,37 @@ namespace sliceio {
       const int prefix;
       const int scalar;
   };
+
+  // ostream format manipulator to set the size of a single slice
+  class setBytes {
+  public:
+    setBytes(const int b): bytes(b) {}; 
+    void operator () (std::ios_base& stream) const;
+  private:
+    const int bytes;
+  };
+
+  const Array2D *SliceSizes(std::ios_base& stream);
+
+  class ExpectedSlicesForFragment {
+  public:
+    ExpectedSlicesForFragment(Fragment &frag);
+    void operator () (std::ios_base& stream) const;
+  private:
+    const int n_slices;
+    const int slice_offset_x;
+    const int slice_offset_y;
+  };
 } // end namespace sliceio
+
+// istream format manipulator to set slice offsets when reading fragments
+std::istream& operator >> (std::istream& stream, sliceio::ExpectedSlicesForFragment esf);
+
+// ostream format manipulator to set the size of a single slice
+std::ostream& operator << (std::ostream& stream, sliceio::setBytes arg);
+
+// istream format manipulator to set the size of a single slice
+std::istream& operator >> (std::istream& stream, sliceio::setBytes arg);
 
 // ostream low delay format manipulator
 std::ostream& operator << (std::ostream& stream, sliceio::lowDelay arg);

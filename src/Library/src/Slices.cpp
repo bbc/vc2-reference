@@ -13,6 +13,7 @@
 #include "WaveletTransform.h"
 #include "VLC.h"
 #include "Utils.h"
+#include "DataUnit.h"
 
 const int slice_bytes(int v, int h, // Slice co-ordinates
                      const int ySlices, const int xSlices, // Number of slices
@@ -143,35 +144,6 @@ const bool SliceQuantiser::next_slice() {
 
 //**** IO functions ****//
 
-struct Slice {
-    Slice(const Picture& p, int d, int i):
-      yuvSlice(p), waveletDepth(d), qIndex(i) {};
-    Slice(const PictureFormat& f, int d):
-      yuvSlice(f), waveletDepth(d) {};
-    Picture yuvSlice;
-    const int waveletDepth;
-    int qIndex;
-};
-
-std::ostream& operator << (std::ostream& stream, const Slice& s);
-
-std::istream& operator >> (std::istream& stream, Slice& s);
-
-// ostream format manipulator to set the size of a single slice
-class setBytes {
-  public:
-    setBytes(const int b): bytes(b) {}; 
-    void operator () (std::ios_base& stream) const;
-  private:
-    const int bytes;
-};
-
-// ostream format manipulator to set the size of a single slice
-std::ostream& operator << (std::ostream& stream, setBytes arg);
-
-// istream format manipulator to set the size of a single slice
-std::istream& operator >> (std::istream& stream, setBytes arg);
-
 namespace {
 
   // Choice of UNKNOWN, LD, HQVBR, HQCBR (see Slices.h)
@@ -197,6 +169,21 @@ namespace {
   }
 
   long& single_slice_size(std::ios_base& stream) {
+      static const int i = std::ios_base::xalloc();
+      return stream.iword(i);
+  }
+
+  long& num_slices(std::ios_base& stream) {
+      static const int i = std::ios_base::xalloc();
+      return stream.iword(i);
+  }
+
+  long& slice_offset_x(std::ios_base& stream) {
+      static const int i = std::ios_base::xalloc();
+      return stream.iword(i);
+  }
+
+  long& slice_offset_y(std::ios_base& stream) {
       static const int i = std::ios_base::xalloc();
       return stream.iword(i);
   }
@@ -648,7 +635,7 @@ std::ostream& operator << (std::ostream& stream, const Slices& s) {
   const int xSlices = yuvSlices.shape()[1];
   for (int v=0; v<ySlices; ++v) {
     for (int h=0; h<xSlices; ++h) {
-      if (bytes_valid) stream << setBytes(bytes[v][h]);
+      if (bytes_valid) stream << sliceio::setBytes(bytes[v][h]);
       stream << Slice(yuvSlices[v][h], waveletDepth, qIndices[v][h]);
     }
   }
@@ -663,15 +650,27 @@ std::istream& operator >> (std::istream& stream, Slices& s) {
   const int waveletDepth = s.waveletDepth;
   const int ySlices = yuvSlices.shape()[0];
   const int xSlices = yuvSlices.shape()[1];
-  for (int v=0; v<ySlices; ++v) {
-    for (int h=0; h<xSlices; ++h) {
-      Slice inSlice(yuvSlices[v][h].format(), waveletDepth);
-      if (bytes_valid) stream >> setBytes(bytes[v][h]);
-      stream >> inSlice;
-      yuvSlices[v][h].y(inSlice.yuvSlice.y());
-      yuvSlices[v][h].c1(inSlice.yuvSlice.c1());
-      yuvSlices[v][h].c2(inSlice.yuvSlice.c2());
-      qIndices[v][h] = inSlice.qIndex;
+  const int n_slices = num_slices(stream);
+  int n = 0;
+  int h = slice_offset_x(stream);
+  int v = slice_offset_y(stream);
+  while (n_slices == 0 || n < n_slices) {
+    Slice inSlice(yuvSlices[v][h].format(), waveletDepth);
+    if (bytes_valid) stream >> sliceio::setBytes(bytes[v][h]);
+    stream >> inSlice;
+    yuvSlices[v][h].y(inSlice.yuvSlice.y());
+    yuvSlices[v][h].c1(inSlice.yuvSlice.c1());
+    yuvSlices[v][h].c2(inSlice.yuvSlice.c2());
+    qIndices[v][h] = inSlice.qIndex;
+
+    n++;
+    h++;
+    if (h == xSlices) {
+      h = 0;
+      v++;
+      if (v == ySlices) {
+        break;
+      }
     }
   }
   return stream;
@@ -711,6 +710,26 @@ std::istream& operator >> (std::istream& stream, Slice& s) {
     default:
       throw std::logic_error("SliceIO: Unknown Input Format");
   }
+}
+
+const Array2D *sliceio::SliceSizes(std::ios_base& stream) {
+  return reinterpret_cast<const Array2D *>(slice_sizes(stream));
+}
+
+sliceio::ExpectedSlicesForFragment::ExpectedSlicesForFragment(Fragment &frag)
+  : n_slices(frag.n_slices())
+  , slice_offset_x(frag.slice_offset_x())
+  , slice_offset_y(frag.slice_offset_y()) {}
+
+void sliceio::ExpectedSlicesForFragment::operator()(std::ios_base &stream) const {
+  num_slices(stream) = this->n_slices;
+  ::slice_offset_x(stream) = this->slice_offset_x;
+  ::slice_offset_y(stream) = this->slice_offset_y;
+}
+
+std::istream& operator >> (std::istream& stream, sliceio::ExpectedSlicesForFragment esf) {
+  esf(stream);
+  return stream;
 }
 
 // IO format manipulator to set the low delay IO format
@@ -771,18 +790,18 @@ std::istream& operator >> (std::istream& stream, sliceio::highQualityVBR arg) {
 }
 
 // IO format manipulator to set the size of a single slice
-void setBytes::operator()(std::ios_base& stream) const {
+void sliceio::setBytes::operator()(std::ios_base& stream) const {
   single_slice_size(stream) = bytes;
 }
 
 // ostream format manipulator to set the size of a single slice
-std::ostream& operator << (std::ostream& stream, setBytes arg) {
+std::ostream& operator << (std::ostream& stream, sliceio::setBytes arg) {
   arg(stream);
   return stream;
 }
 
 // istream format manipulator to set the size of a single slice
-std::istream& operator >> (std::istream& stream, setBytes arg) {
+std::istream& operator >> (std::istream& stream, sliceio::setBytes arg) {
   arg(stream);
   return stream;
 }

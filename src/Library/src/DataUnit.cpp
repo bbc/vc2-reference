@@ -8,6 +8,7 @@
 /*********************************************************************/
 
 #include <iostream> //For cin, cout, cerr
+#include <sstream>
 
 #include "DataUnit.h"
 #include "Slices.h"
@@ -62,6 +63,16 @@ namespace {
     static const int i = std::ios_base::xalloc();
     return stream.iword(i);
   }
+
+  long& major_version_number(std::ios_base& stream) {
+    static const int i = std::ios_base::xalloc();
+    return stream.iword(i);
+  }
+
+  long& fragment_length(std::ios_base& stream) {
+    static const int i = std::ios_base::xalloc();
+    return stream.iword(i);
+  }
 };
 
 class ParseInfoIO {
@@ -86,6 +97,10 @@ public:
       return 0xC8;
     case HQ_PICTURE:
       return 0xE8;
+    case HQ_FRAGMENT:
+      return 0xEC;
+    case LD_FRAGMENT:
+      return 0xCC;
     default:
       return 0x20;
     }
@@ -106,55 +121,223 @@ std::ostream& operator << (std::ostream& stream, const ParseInfoIO &piio) {
 }
 
 std::ostream& LDWrappedPictureIO(std::ostream& stream, const WrappedPicture& d) {
-  std::ostringstream ss;
-  ss.copyfmt(stream);
+  if (fragment_length(stream) == 0) {
+    std::ostringstream ss;
+    ss.copyfmt(stream);
 
-  // Picture Header
-  ss << Bytes(4, d.picture_number);
+    // Picture Header
+    ss << Bytes(4, d.picture_number);
 
-  // Transform Params
-  ss << vlc::unbounded
-     << UnsignedVLC(d.wavelet_kernel)
-     << UnsignedVLC(d.depth)
-     << UnsignedVLC(d.slices_x)
-     << UnsignedVLC(d.slices_y)
-     << UnsignedVLC(d.slice_bytes.numerator)
-     << UnsignedVLC(d.slice_bytes.denominator)
-     << Boolean(false)
-     << vlc::align;
+    // Transform Params
+    ss << vlc::unbounded
+       << UnsignedVLC(d.wavelet_kernel)
+       << UnsignedVLC(d.depth);
 
-  // Transform Data
-  ss << d.slices;
+    if (major_version_number(stream) >= 3) {
+      ss << Boolean(false)  // asym_transform_index_flag
+         << Boolean(false); // asym_transform_flag
+    }
 
-  stream << ParseInfoIO(LD_PICTURE, ss.str().size());
+    ss << UnsignedVLC(d.slices_x)
+       << UnsignedVLC(d.slices_y)
+       << UnsignedVLC(d.slice_bytes.numerator)
+       << UnsignedVLC(d.slice_bytes.denominator)
+       << Boolean(false)
+       << vlc::align;
 
-  return (stream << ss.str());
+    // Transform Data
+    ss << d.slices;
+
+    stream << ParseInfoIO(LD_PICTURE, ss.str().size());
+
+    return (stream << ss.str());
+  } else {
+    {
+      std::ostringstream ss;
+      ss.copyfmt(stream);
+
+      // Transform Params
+      ss << vlc::unbounded
+         << UnsignedVLC(d.wavelet_kernel)
+         << UnsignedVLC(d.depth);
+    
+      ss << Boolean(false)  // asym_transform_index_flag
+         << Boolean(false); // asym_transform_flag
+    
+      ss << UnsignedVLC(d.slices_x)
+         << UnsignedVLC(d.slices_y)
+         << UnsignedVLC(d.slice_bytes.numerator)
+         << UnsignedVLC(d.slice_bytes.denominator)
+         << Boolean(false)
+         << vlc::align;
+
+      stream << ParseInfoIO(LD_FRAGMENT, ss.str().size() + 8)
+             << Bytes(4, d.picture_number)
+             << Bytes(2, ss.str().size())
+             << Bytes(2, 0);
+      stream << ss.str();
+    }
+
+    int slice_x = 0;
+    int slice_y = 0;
+    int slice_offset_x = 0;
+    int slice_offset_y = 0;
+    int nslices = 0;
+    std::ostringstream fragstream;
+    fragstream.copyfmt(stream);
+    const Array2D& bytes = *sliceio::SliceSizes(stream);
+    const bool bytes_valid = (sliceio::SliceSizes(stream)!=0);
+    const PictureArray& yuvSlices = d.slices.yuvSlices;
+    const Array2D& qIndices = d.slices.qIndices;
+    const int waveletDepth = d.slices.waveletDepth;
+    while (slice_y*d.slices_x + slice_x < d.slices_y*d.slices_x) {
+      std::ostringstream slicestream;
+      slicestream.copyfmt(stream);
+      if (bytes_valid) slicestream << sliceio::setBytes(bytes[slice_y][slice_x]);
+      slicestream << Slice(yuvSlices[slice_y][slice_x], waveletDepth, qIndices[slice_y][slice_x]);
+
+      if (nslices > 0 && (int)(fragstream.str().size() + slicestream.str().size()) > fragment_length(stream)) {
+        stream << ParseInfoIO(LD_FRAGMENT, fragstream.str().size() + 12)
+               << Bytes(4, d.picture_number)
+               << Bytes(2, fragstream.str().size())
+               << Bytes(2, nslices)
+               << Bytes(2, slice_offset_x)
+               << Bytes(2, slice_offset_y)
+               << fragstream.str();
+        slice_offset_x = slice_x;
+        slice_offset_y = slice_y;
+        nslices = 0;
+        fragstream.str("");
+        fragstream.clear();
+        fragstream.copyfmt(stream);
+      }
+
+      fragstream << slicestream.str();
+      nslices++;
+      slice_x++;
+      if (slice_x == d.slices_x) {
+        slice_x = 0;
+        slice_y++;
+      }
+    }
+    stream << ParseInfoIO(LD_FRAGMENT, fragstream.str().size() + 12)
+           << Bytes(4, d.picture_number)
+           << Bytes(2, fragstream.str().size())
+           << Bytes(2, nslices)
+           << Bytes(2, slice_offset_x)
+           << Bytes(2, slice_offset_y)
+           << fragstream.str();
+    return stream;
+  }
 }
 
 std::ostream& HQWrappedPictureIO(std::ostream& stream, const WrappedPicture& d) {
-  std::ostringstream ss;
-  ss.copyfmt(stream);
+  if (fragment_length(stream) == 0) {
+    std::ostringstream ss;
+    ss.copyfmt(stream);
 
-  // Picture Header
-  ss << Bytes(4, d.picture_number);
+    // Picture Header
+    ss << Bytes(4, d.picture_number);
 
-  // Transform Params
-  ss << vlc::unbounded
-     << UnsignedVLC(d.wavelet_kernel)
-     << UnsignedVLC(d.depth)
-     << UnsignedVLC(d.slices_x)
-     << UnsignedVLC(d.slices_y)
-     << UnsignedVLC(d.slice_prefix)
-     << UnsignedVLC(d.slice_size_scalar)
-     << Boolean(false)
-     << vlc::align;
+    // Transform Params
+    ss << vlc::unbounded
+       << UnsignedVLC(d.wavelet_kernel)
+       << UnsignedVLC(d.depth);
+    
+    if (major_version_number(stream) >= 3) {
+      ss << Boolean(false)  // asym_transform_index_flag
+         << Boolean(false); // asym_transform_flag
+    }
+    
+    ss << UnsignedVLC(d.slices_x)
+       << UnsignedVLC(d.slices_y)
+       << UnsignedVLC(d.slice_prefix)
+       << UnsignedVLC(d.slice_size_scalar)
+       << Boolean(false)
+       << vlc::align;
 
-  // Transform Data
-  ss << d.slices;
+    // Transform Data
+    ss << d.slices;
 
-  stream << ParseInfoIO(HQ_PICTURE, ss.str().size());
+    stream << ParseInfoIO(HQ_PICTURE, ss.str().size());
 
-  return (stream << ss.str());
+    return (stream << ss.str());
+  } else {
+    {
+      std::ostringstream ss;
+      ss.copyfmt(stream);
+
+      // Transform Params
+      ss << vlc::unbounded
+         << UnsignedVLC(d.wavelet_kernel)
+         << UnsignedVLC(d.depth);
+    
+      ss << Boolean(false)  // asym_transform_index_flag
+         << Boolean(false); // asym_transform_flag
+    
+      ss << UnsignedVLC(d.slices_x)
+         << UnsignedVLC(d.slices_y)
+         << UnsignedVLC(d.slice_prefix)
+         << UnsignedVLC(d.slice_size_scalar)
+         << Boolean(false)
+         << vlc::align;
+
+      stream << ParseInfoIO(HQ_FRAGMENT, ss.str().size() + 8)
+             << Bytes(4, d.picture_number)
+             << Bytes(2, ss.str().size())
+             << Bytes(2, 0);
+      stream << ss.str();
+    }
+
+    int slice_x = 0;
+    int slice_y = 0;
+    int slice_offset_x = 0;
+    int slice_offset_y = 0;
+    int nslices = 0;
+    std::ostringstream fragstream;
+    fragstream.copyfmt(stream);
+    const Array2D& bytes = *sliceio::SliceSizes(stream);
+    const bool bytes_valid = (sliceio::SliceSizes(stream)!=0);
+    const PictureArray& yuvSlices = d.slices.yuvSlices;
+    const Array2D& qIndices = d.slices.qIndices;
+    const int waveletDepth = d.slices.waveletDepth;
+    while (slice_y*d.slices_x + slice_x < d.slices_y*d.slices_x) {
+      std::ostringstream slicestream;
+      slicestream.copyfmt(stream);
+      if (bytes_valid) slicestream << sliceio::setBytes(bytes[slice_y][slice_x]);
+      slicestream << Slice(yuvSlices[slice_y][slice_x], waveletDepth, qIndices[slice_y][slice_x]);
+
+      if (nslices > 0 && (int)(fragstream.str().size() + slicestream.str().size()) > fragment_length(stream)) {
+        stream << ParseInfoIO(HQ_FRAGMENT, fragstream.str().size() + 12)
+               << Bytes(4, d.picture_number)
+               << Bytes(2, fragstream.str().size())
+               << Bytes(2, nslices)
+               << Bytes(2, slice_offset_x)
+               << Bytes(2, slice_offset_y)
+               << fragstream.str();
+        slice_offset_x = slice_x;
+        slice_offset_y = slice_y;
+        nslices = 0;
+        fragstream.str("");
+      }
+
+      fragstream << slicestream.str();
+      nslices++;
+      slice_x++;
+      if (slice_x == d.slices_x) {
+        slice_x = 0;
+        slice_y++;
+      }
+    }
+    stream << ParseInfoIO(HQ_FRAGMENT, fragstream.str().size() + 12)
+           << Bytes(4, d.picture_number)
+           << Bytes(2, fragstream.str().size())
+           << Bytes(2, nslices)
+           << Bytes(2, slice_offset_x)
+           << Bytes(2, slice_offset_y)
+           << fragstream.str();
+    return stream;
+  }
 }
 
 std::ostream& operator << (std::ostream& stream, const WrappedPicture& d) {
@@ -194,7 +377,7 @@ SequenceHeader::SequenceHeader()
   , topFieldFirst (false)
   , bitdepth (0) {}
 
-SequenceHeader::SequenceHeader(Profile p, int h, int w, ColourFormat c, bool i, FrameRate f, bool tff, int bd)
+SequenceHeader::SequenceHeader(Profile p, int h, int w, ColourFormat c, bool i, FrameRate f, bool tff, int bd, bool use_v3)
   : major_version(1)
   , minor_version(0)
   , profile (p)
@@ -207,6 +390,11 @@ SequenceHeader::SequenceHeader(Profile p, int h, int w, ColourFormat c, bool i, 
   , bitdepth (bd) {
   if (p == PROFILE_HQ) {
     major_version = 2;
+  }
+  if (use_v3 ||
+      f > MAX_V2_FRAMERATE ||
+      bd > 12) {
+    major_version = 3;
   }
 }
 
@@ -379,6 +567,7 @@ video_format::video_format(const SequenceHeader &fmt)
       case  8: bitdepth = 1; break;
       case 10: bitdepth = 3; break;
       case 12: bitdepth = 4; break;
+      case 16: bitdepth = 7; break;
       default:
         throw std::logic_error("DataUnitIO: invalid bit depth");
       }
@@ -392,6 +581,8 @@ video_format::video_format(const SequenceHeader &fmt)
 }
 
 std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
+
+  major_version_number(ss) = fmt.major_version;
   ss << vlc::unbounded;
   
   ss << UnsignedVLC(fmt.major_version)
@@ -465,8 +656,27 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
     case FR48:
       ss << UnsignedVLC(11);
       break;
+    case FR48_1001:
+      ss << UnsignedVLC(12);
+      break;
+    case FR96:
+      ss << UnsignedVLC(13);
+      break;
+    case FR100:
+      ss << UnsignedVLC(14);
+      break;
+    case FR120_1001:
+      ss << UnsignedVLC(15);
+      break;
+    case FR120:
+      ss << UnsignedVLC(16);
+      break;
     default:
-      throw std::logic_error("DataUnitIO: Invalid Frame Rate");
+      {
+        std::stringstream ss;
+        ss << "DataUnitIO: Invalid Frame Rate on output: " << fmt.frame_rate;
+        throw std::logic_error(ss.str());
+      }
     }
   }
 
@@ -501,6 +711,7 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   UnsignedVLC major_version, minor_version, profile, level;
   stream >> major_version >> minor_version >> profile >> level;
   fmt.major_version = major_version;
+  major_version_number(stream) = fmt.major_version;
   fmt.minor_version = minor_version;
   fmt.profile = profile;
   fmt.level = level;
@@ -567,8 +778,17 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     case 9: fmt.frame_rate = FR15000_1001; break;
     case 10: fmt.frame_rate = FR25_2; break;
     case 11: fmt.frame_rate = FR48; break;
+    case 12: fmt.frame_rate = FR48_1001; break;
+    case 13: fmt.frame_rate = FR96; break;
+    case 14: fmt.frame_rate = FR100; break;
+    case 15: fmt.frame_rate = FR120_1001; break;
+    case 16: fmt.frame_rate = FR120; break;
     default:
-      throw std::logic_error("DataUnitIO: Invalid Frame Rate");
+      {
+        std::stringstream ss;
+        ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)index;
+        throw std::logic_error(ss.str());
+      }
     }
   }
 
@@ -638,10 +858,16 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
 std::ostream& operator << (std::ostream& stream, const SequenceHeader& s) {
   video_format fmt(s);
 
+  if (fragment_length(stream) > 0)
+    if (s.major_version < 3)
+      fmt.major_version = 3;
+
   std::stringstream ss;
   ss.copyfmt(stream);
   
   ss << fmt;
+
+  stream.copyfmt(ss);
 
   stream << ParseInfoIO(SEQUENCE_HEADER, ss.str().size()) << ss.str();
 
@@ -689,6 +915,8 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   case 0x30: d.type = PADDING_DATA;    break;
   case 0xC8: d.type = LD_PICTURE;      break;
   case 0xE8: d.type = HQ_PICTURE;      break;
+  case 0xCC: d.type = LD_FRAGMENT;     break;
+  case 0xEC: d.type = HQ_FRAGMENT;     break;
   default:
     d.type = UNKNOWN_DATA_UNIT;
   }
@@ -713,6 +941,27 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   Bytes prefix(4);
   stream >> prefix;
 
+  d.strm.copyfmt(stream);
+
+  return stream;
+}
+
+std::istream& operator >> (std::istream& stream, Fragment &d) {
+  Bytes picnum(4);
+  Bytes fraglen(2);
+  Bytes slice_count(2);
+  stream >> fraglen >> slice_count;
+
+  d.mNSlices       = slice_count;
+
+  if (d.mNSlices != 0) {
+    Bytes slice_offset_x(2);
+    Bytes slice_offset_y(2);
+    stream >> slice_offset_x >> slice_offset_y;
+    d.mSliceOffsetX = (int)slice_offset_x;
+    d.mSliceOffsetY = (int)slice_offset_y;
+  }
+
   return stream;
 }
 
@@ -724,6 +973,8 @@ std::ostream& operator << (std::ostream& stream, const DataUnitType& t) {
   case PADDING_DATA:    stream << "Padding Data";    break;
   case LD_PICTURE:      stream << "LD Picture";      break;
   case HQ_PICTURE:      stream << "HQ Picture";      break;
+  case LD_FRAGMENT:     stream << "LD Fragment";     break;
+  case HQ_FRAGMENT:     stream << "HQ Fragment";     break;
   default:
     stream << "Unknown Data Unit";
   }
@@ -752,78 +1003,106 @@ std::ostream& operator << (std::ostream& stream, const FrameRate& r) {
   return stream;
 }
 
-SequenceHeader & operator << (SequenceHeader &hdr, video_format &fmt) {
+void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
+  SequenceHeader *other;
+
   switch (fmt.base_video_format) {
-  case  0: hdr = SequenceHeader(PROFILE_UNKNOWN, 480,  640,  CF420, false, FR24000_1001, false,  8); break;
-  case  1: hdr = SequenceHeader(PROFILE_UNKNOWN, 120,  176,  CF420, false, FR15000_1001, false,  8); break;
-  case  2: hdr = SequenceHeader(PROFILE_UNKNOWN, 144,  176,  CF420, false, FR25_2,       true,   8); break;
-  case  3: hdr = SequenceHeader(PROFILE_UNKNOWN, 240,  352,  CF420, false, FR15000_1001, false,  8); break;
-  case  4: hdr = SequenceHeader(PROFILE_UNKNOWN, 288,  352,  CF420, false, FR25_2,       true,   8); break;
-  case  5: hdr = SequenceHeader(PROFILE_UNKNOWN, 480,  704,  CF420, false, FR15000_1001, false,  8); break;
-  case  6: hdr = SequenceHeader(PROFILE_UNKNOWN, 576,  704,  CF420, false, FR25_2,       true,   8); break;
-  case  7: hdr = SequenceHeader(PROFILE_UNKNOWN, 480,  720,  CF422, true,  FR30000_1001, false, 10); break;
-  case  8: hdr = SequenceHeader(PROFILE_UNKNOWN, 576,  720,  CF422, true,  FR25,         true,  10); break;
-  case  9: hdr = SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR60000_1001, true,  10); break;
-  case 10: hdr = SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR50,         true,  10); break;
-  case 11: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR30000_1001, true,  10); break;
-  case 12: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR25,         true,  10); break;
-  case 13: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR60000_1001, true,  10); break;
-  case 14: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR50,         true,  10); break;
-  case 15: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 2048, CF444, false, FR24,         true,  12); break;
-  case 16: hdr = SequenceHeader(PROFILE_UNKNOWN, 2160, 4096, CF444, false, FR24,         true,  12); break;
-  case 17: hdr = SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR60000_1001, true,  10); break;
-  case 18: hdr = SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR50,         true,  10); break;
-  case 19: hdr = SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR60000_1001, true,  10); break;
-  case 20: hdr = SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR50,         true,  10); break;
-  case 21: hdr = SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR24000_1001, true,  10); break;
-  case 22: hdr = SequenceHeader(PROFILE_UNKNOWN, 486,  720,  CF422, true,  FR30000_1001, false, 10); break;
+  case  0: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  640,  CF420, false, FR24000_1001, false,  8); break;
+  case  1: other = new SequenceHeader(PROFILE_UNKNOWN, 120,  176,  CF420, false, FR15000_1001, false,  8); break;
+  case  2: other = new SequenceHeader(PROFILE_UNKNOWN, 144,  176,  CF420, false, FR25_2,       true,   8); break;
+  case  3: other = new SequenceHeader(PROFILE_UNKNOWN, 240,  352,  CF420, false, FR15000_1001, false,  8); break;
+  case  4: other = new SequenceHeader(PROFILE_UNKNOWN, 288,  352,  CF420, false, FR25_2,       true,   8); break;
+  case  5: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  704,  CF420, false, FR15000_1001, false,  8); break;
+  case  6: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  704,  CF420, false, FR25_2,       true,   8); break;
+  case  7: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  720,  CF422, true,  FR30000_1001, false, 10); break;
+  case  8: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  720,  CF422, true,  FR25,         true,  10); break;
+  case  9: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR60000_1001, true,  10); break;
+  case 10: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR50,         true,  10); break;
+  case 11: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR30000_1001, true,  10); break;
+  case 12: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR25,         true,  10); break;
+  case 13: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR60000_1001, true,  10); break;
+  case 14: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR50,         true,  10); break;
+  case 15: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 2048, CF444, false, FR24,         true,  12); break;
+  case 16: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 4096, CF444, false, FR24,         true,  12); break;
+  case 17: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR60000_1001, true,  10); break;
+  case 18: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR50,         true,  10); break;
+  case 19: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR60000_1001, true,  10); break;
+  case 20: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR50,         true,  10); break;
+  case 21: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR24000_1001, true,  10); break;
+  case 22: other = new SequenceHeader(PROFILE_UNKNOWN, 486,  720,  CF422, true,  FR30000_1001, false, 10); break;
   default:
     throw std::logic_error("DataUnitIO: unknown base video format");
   }
 
+  hdr->profile       = other->profile;
+  hdr->width         = other->width;
+  hdr->height        = other->height;
+  hdr->chromaFormat  = other->chromaFormat;
+  hdr->interlace     = other->interlace;
+  hdr->frameRate     = other->frameRate;
+  hdr->topFieldFirst = other->topFieldFirst;
+  hdr->bitdepth      = other->bitdepth;
+  delete other;
+
+  hdr->major_version = fmt.major_version;
+  hdr->minor_version = fmt.minor_version;
+
   if (fmt.profile == 0)
-    hdr.profile = PROFILE_LD;
+    hdr->profile = PROFILE_LD;
   else if (fmt.profile == 3)
-    hdr.profile = PROFILE_HQ;
+    hdr->profile = PROFILE_HQ;
 
   if (fmt.custom_dimensions_flag) {
-    hdr.width = fmt.frame_width;
-    hdr.height = fmt.frame_height;
+    hdr->width = fmt.frame_width;
+    hdr->height = fmt.frame_height;
   }
   if (fmt.custom_color_diff_format_flag) {
-    hdr.chromaFormat = (ColourFormat)fmt.color_diff_format;
+    hdr->chromaFormat = (ColourFormat)fmt.color_diff_format;
   }
   if (fmt.custom_scan_format_flag) {
     if (fmt.source_sampling == 0)
-      hdr.interlace = false;
+      hdr->interlace = false;
     else
-      hdr.interlace = true;
+      hdr->interlace = true;
   }
   if (fmt.custom_signal_range_flag) {
     switch (fmt.bitdepth) {
-    case 1: hdr.bitdepth =  8; break;
-    case 2: hdr.bitdepth =  8; break;
-    case 3: hdr.bitdepth = 10; break;
-    case 4: hdr.bitdepth = 12; break;
+    case 1: hdr->bitdepth =  8; break;
+    case 2: hdr->bitdepth =  8; break;
+    case 3: hdr->bitdepth = 10; break;
+    case 4: hdr->bitdepth = 12; break;
+    case 5: hdr->bitdepth = 10; break;
+    case 6: hdr->bitdepth = 12; break;
+    case 7: hdr->bitdepth = 16; break;
+    case 8: hdr->bitdepth = 16; break;
+    }
+
+    if (fmt.bitdepth > 4) {
+      if (hdr->major_version < 3)
+        hdr->major_version = 3;
     }
   }
   if (fmt.custom_frame_rate_flag) {
-    hdr.frameRate = fmt.frame_rate;
+    hdr->frameRate = fmt.frame_rate;
+
+    if (fmt.frame_rate > MAX_V2_FRAMERATE)
+      if (hdr->major_version < 3)
+        hdr->major_version = 3;
   }
 
-  return hdr;
+  //  return hdr;
 }
 
 std::istream& operator >> (std::istream& stream, SequenceHeader &hdr) {
   video_format fmt;
   stream >> fmt;
-  hdr << fmt;
+  copy_video_fmt_to_hdr(&hdr, fmt);
+  major_version_number(stream) = hdr.major_version;
   return stream;
 }
 
 PicturePreamble::PicturePreamble()
-  : picture_number (0)
-  , wavelet_kernel(NullKernel)
+  : wavelet_kernel(NullKernel)
   , depth (0)
   , slices_x (0)
   , slices_y (0)
@@ -832,11 +1111,14 @@ PicturePreamble::PicturePreamble()
   , slice_bytes() {
 }
 
-std::istream& operator >> (std::istream& stream, PicturePreamble &hdr) {
-  Bytes picture_number(4);
-  stream >> picture_number;
-  hdr.picture_number = picture_number;
+std::istream& operator >> (std::istream& stream, PictureHeader &h) {
+  Bytes picnum(4);
+  stream >> picnum;
+  h.picture_number = (int)picnum;
+  return stream;
+}
 
+std::istream& operator >> (std::istream& stream, PicturePreamble &hdr) {
   UnsignedVLC wavelet_index, depth;
   stream >> wavelet_index >> depth;
   switch(wavelet_index) {
@@ -849,6 +1131,32 @@ std::istream& operator >> (std::istream& stream, PicturePreamble &hdr) {
   case 6: hdr.wavelet_kernel = Daub97;   break;
   }
   hdr.depth = depth;
+  hdr.wavelet_kernel_ho = hdr.wavelet_kernel;
+  hdr.depth_ho = 0;
+
+  if (major_version_number(stream) >= 3) {
+    Boolean asym_transform_index_flag, asym_transform_flag;
+    UnsignedVLC wavelet_index_ho;
+    UnsignedVLC dwt_depth_ho;
+    stream >> asym_transform_index_flag;
+    if (asym_transform_index_flag) {
+      stream >> wavelet_index_ho;
+      switch(wavelet_index_ho) {
+      case 0: hdr.wavelet_kernel_ho = DD97;     break;
+      case 1: hdr.wavelet_kernel_ho = LeGall;   break;
+      case 2: hdr.wavelet_kernel_ho = DD137;    break;
+      case 3: hdr.wavelet_kernel_ho = Haar0;    break;
+      case 4: hdr.wavelet_kernel_ho = Haar1;    break;
+      case 5: hdr.wavelet_kernel_ho = Fidelity; break;
+      case 6: hdr.wavelet_kernel_ho = Daub97;   break;
+      }
+    }
+    stream >> asym_transform_flag;
+    if (asym_transform_flag) {
+      stream >> dwt_depth_ho;
+      hdr.depth_ho = dwt_depth_ho;
+    }
+  }
 
   if (sliceio::sliceIOMode(stream) == sliceio::HQVBR || sliceio::sliceIOMode(stream) == sliceio::HQCBR) {
     UnsignedVLC slices_x, slices_y, slice_prefix, slice_size_scalar;
@@ -880,5 +1188,16 @@ std::istream& operator >> (std::istream& stream, PicturePreamble &hdr) {
 
   stream >> vlc::align;
 
+  return stream;
+}
+
+void dataunitio::fragmentedPictures::operator() (std::ios_base &stream) const {
+  fragment_length(stream) = (long)mFL;
+  if (major_version_number(stream) < 3)
+    major_version_number(stream) = 3;
+}
+
+std::ostream& operator << (std::ostream& stream, dataunitio::fragmentedPictures arg) {
+  arg(stream);
   return stream;
 }

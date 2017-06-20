@@ -34,6 +34,7 @@ const char* details[] = {version, summary, description};
 #include <fstream>
 #include <cstdio> // for perror
 #include <boost/scoped_ptr.hpp>
+#include <map>
 
 #include "DecodeParams.h"
 #include "Arrays.h"
@@ -57,8 +58,49 @@ using std::ios_base;
 using std::istream;
 using std::ostream;
 
+struct FragmentedPictureData {
+  FragmentedPictureData (const PictureFormat& pictureFormat, int waveletDepth,
+                         int ySlices, int xSlices, int sp, int sss,
+                         const Array1D &qm,
+                         int h, int w, ColourFormat cf)
+    : slices(pictureFormat, waveletDepth,
+             ySlices, xSlices)
+    , qMatrix(qm)
+    , picFormat(h, w, cf)
+    , slice_prefix(sp)
+    , slice_size_scalar(sss)
+    , slice_bytes()
+    , slices_needed(xSlices*ySlices)
+    , slices_decoded(0) {}
+
+  FragmentedPictureData (const PictureFormat& pictureFormat, int waveletDepth,
+                         int ySlices, int xSlices,
+                         const Array2D &sb,
+                         const Array1D &qm,
+                         int h, int w, ColourFormat cf)
+    : slices(pictureFormat, waveletDepth,
+             ySlices, xSlices)
+    , qMatrix(qm)
+    , picFormat(h, w, cf)
+    , slice_prefix(0)
+    , slice_size_scalar(0)
+    , slice_bytes(sb)
+    , slices_needed(xSlices*ySlices)
+    , slices_decoded(0) {}
+
+  Slices slices;
+  const Array1D qMatrix;
+  const PictureFormat picFormat;
+  int slice_prefix;
+  int slice_size_scalar;
+  Array2D slice_bytes;
+
+  int slices_needed;
+  int slices_decoded;
+};
+
 int main(int argc, char * argv[]) {
-  
+
 try { //Giant try block around all code to get error messages
 
   ProgramParams params = getCommandLineParams(argc, argv, details);
@@ -155,7 +197,9 @@ try { //Giant try block around all code to get error messages
   int sliceScalar;
   int slicePrefix;
   boost::scoped_ptr<Frame> outFrame;
-  
+
+  std::map<int, FragmentedPictureData *> fragmentReassemblingSlices;
+
   while (true) {
     // Read data unit from stream
     if (!inStream) {
@@ -178,6 +222,7 @@ try { //Giant try block around all code to get error messages
 
         SequenceHeader seq_hdr;
         du.stream() >> seq_hdr;
+        inStream.copyfmt(du.stream());
 
         if (verbose) {
           clog << "height        = " << seq_hdr.height << endl;
@@ -212,12 +257,14 @@ try { //Giant try block around all code to get error messages
       {
         if (verbose) clog << "Parsing Picture Header" << endl;
 
+        PictureHeader pichdr;
         PicturePreamble preamble;
         du.stream() >> dataunitio::lowDelay
+                    >> pichdr
                     >> preamble;
 
         if (verbose) {
-          clog << "Picture number      : " << preamble.picture_number << endl;
+          clog << "Picture number      : " << pichdr.picture_number << endl;
           clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
           clog << "Transform Depth     : " << preamble.depth << endl;
           clog << "Slices Horizontally : " << preamble.slices_x << endl;
@@ -275,7 +322,7 @@ try { //Giant try block around all code to get error messages
           continue;
         }
         else if (verbose) clog << endl;
-    
+
         // Reorder quantised coefficients from slice order to transform order
         if (verbose) clog << "Merge slices into full picture" << endl;
         const Picture yuvQCoeffs = merge_blocks(inSlices.yuvSlices);
@@ -291,7 +338,7 @@ try { //Giant try block around all code to get error messages
             return EXIT_FAILURE; }
           continue; // omit rest of processing for this picture
         }
-      
+
         if (output==QUANTISED) {
           //Write quantised transform output as 4 byte 2's comp values
           clog << "Writing quantised transform coefficients to output file" << endl;
@@ -303,7 +350,7 @@ try { //Giant try block around all code to get error messages
             return EXIT_FAILURE; }
           continue; // omit rest of processing for this picture
         }
-    
+
         // Inverse quantise in transform order
         if (verbose) clog << "Inverse quantise" << endl;
         const Picture yuvTransform = inverse_quantise_transform(yuvQCoeffs, inSlices.qIndices, qMatrix);
@@ -331,7 +378,7 @@ try { //Giant try block around all code to get error messages
             const PictureFormat frameFormat(height, width, chromaFormat);
             outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
             outFrame->firstField(outPicture);
-              
+
             pic++;
             continue;
           }
@@ -372,12 +419,14 @@ try { //Giant try block around all code to get error messages
       {
         if (verbose) clog << "Parsing Picture Header" << endl;
 
+        PictureHeader pichdr;
         PicturePreamble preamble;
         du.stream() >> dataunitio::highQualityVBR(0, 1)
+                    >> pichdr
                     >> preamble;
 
         if (verbose) {
-          clog << "Picture number      : " << preamble.picture_number << endl;
+          clog << "Picture number      : " << pichdr.picture_number << endl;
           clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
           clog << "Transform Depth     : " << preamble.depth << endl;
           clog << "Slices Horizontally : " << preamble.slices_x << endl;
@@ -436,7 +485,7 @@ try { //Giant try block around all code to get error messages
           continue;
         }
         else if (verbose) clog << endl;
-    
+
         // Reorder quantised coefficients from slice order to transform order
         if (verbose) clog << "Merge slices into full picture" << endl;
         const Picture yuvQCoeffs = merge_blocks(inSlices.yuvSlices);
@@ -452,7 +501,7 @@ try { //Giant try block around all code to get error messages
             return EXIT_FAILURE; }
           continue; // omit rest of processing for this picture
         }
-      
+
         if (output==QUANTISED) {
           //Write quantised transform output as 4 byte 2's comp values
           clog << "Writing quantised transform coefficients to output file" << endl;
@@ -464,7 +513,7 @@ try { //Giant try block around all code to get error messages
             return EXIT_FAILURE; }
           continue; // omit rest of processing for this picture
         }
-    
+
         // Inverse quantise in transform order
         if (verbose) clog << "Inverse quantise" << endl;
         const Picture yuvTransform = inverse_quantise_transform_np(yuvQCoeffs, inSlices.qIndices, qMatrix);
@@ -484,7 +533,7 @@ try { //Giant try block around all code to get error messages
         // Inverse wavelet transform
         if (verbose) clog << "Inverse transform" << endl;
         const Picture outPicture = inverseWaveletTransform(yuvTransform, kernel, waveletDepth, picFormat);
-  
+
         // Copy picture to output frame
         if (verbose) clog << "Copy picture to output frame" << endl;
         if (interlaced) {
@@ -528,6 +577,371 @@ try { //Giant try block around all code to get error messages
         }
 
         ++frame;
+      }
+      break;
+    case LD_FRAGMENT:
+      {
+        if (verbose) clog << "Parsing LD Fragment" << endl;
+
+        PictureHeader pichdr;
+        Fragment frag;
+        du.stream() >> dataunitio::lowDelay
+                    >> pichdr
+                    >> frag;
+
+        if (frag.n_slices() == 0) {
+          if (verbose) clog << "Parsing Picture Header" << endl;
+          PicturePreamble preamble;
+          du.stream() >> preamble;
+          if (verbose) {
+            clog << "Picture number      : " << pichdr.picture_number << endl;
+            clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
+            clog << "Transform Depth     : " << preamble.depth << endl;
+            clog << "Slices Horizontally : " << preamble.slices_x << endl;
+            clog << "Slices Verically    : " << preamble.slices_y << endl;
+            clog << "Slice Bytes         : " << preamble.slice_bytes << endl;
+          }
+
+          ySlices = preamble.slices_y;
+          xSlices = preamble.slices_x;
+          waveletDepth = preamble.depth;
+          kernel = preamble.wavelet_kernel;
+          compressedBytes = (preamble.slice_bytes.numerator*preamble.slices_y*preamble.slices_x)/preamble.slice_bytes.denominator;
+
+          if (!have_seq_hdr) {
+            clog << "Cannot decode frame, no previous sequence header!" << endl;
+          } else {
+            // Calculate number of slices per picture
+            const int pictureHeight = ( (interlaced) ? height/2 : height);
+            const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
+            const int paddedWidth = paddedSize(width, waveletDepth);
+
+            // Calculate the quantisation matrix
+            const Array1D qMatrix = quantMatrix(kernel, waveletDepth);
+            if (verbose) {
+              clog << "Quantisation matrix = " << qMatrix[0];
+              for (unsigned int i=1; i<qMatrix.size(); ++i) {
+                clog << ", " << qMatrix[i];
+              }
+              clog << endl;
+            }
+
+            // First calculate number of bytes for each slice
+            const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
+            const Array2D sliceBytes = slice_bytes(ySlices, xSlices, pictureBytes, 1);
+            const PictureFormat transformFormat(paddedPictureHeight, paddedWidth, chromaFormat);
+
+            // Define picture format (field or frame)
+            const PictureFormat picFormat(pictureHeight, width, chromaFormat);
+
+            fragmentReassemblingSlices[pichdr.picture_number] = new FragmentedPictureData(transformFormat,
+                                                                                          waveletDepth,
+                                                                                          ySlices,
+                                                                                          xSlices,
+                                                                                          sliceBytes,
+                                                                                          qMatrix,
+                                                                                          pictureHeight, width, chromaFormat);
+          }
+        } else {
+          if (fragmentReassemblingSlices.count(pichdr.picture_number) == 0) {
+            clog << "Cannot decode slices as no picture header yet read for picture number " << pichdr.picture_number << endl;
+          } else {
+            if (verbose) {
+              clog << "Picture " << pichdr.picture_number << ": Reading " << frag.n_slices()
+                   << " slices, starting from (" << frag.slice_offset_x() << ", " << frag.slice_offset_y() << ")" << endl;
+            }
+            du.stream() >> sliceio::lowDelay(fragmentReassemblingSlices[pichdr.picture_number]->slice_bytes);
+            du.stream() >> sliceio::ExpectedSlicesForFragment(frag);
+            du.stream() >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
+            fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded += frag.n_slices();
+
+            if (fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded >= fragmentReassemblingSlices[pichdr.picture_number]->slices_needed) {
+              Slices &inSlices = fragmentReassemblingSlices[pichdr.picture_number]->slices;
+              const Array1D &qMatrix = fragmentReassemblingSlices[pichdr.picture_number]->qMatrix;
+              const PictureFormat &picFormat = fragmentReassemblingSlices[pichdr.picture_number]->picFormat;
+              // Reorder quantised coefficients from slice order to transform order
+              if (verbose) clog << "Merge slices into full picture" << endl;
+              const Picture yuvQCoeffs = merge_blocks(inSlices.yuvSlices);
+
+              if (output==INDICES) {
+                //Write quantisation indices as 1 byte unsigned values
+                clog << "Writing quantisation indices to output file" << endl;
+                outStream << arrayio::wordWidth(1); //1 byte per sample
+                outStream << arrayio::unsigned_binary; // unsigned output
+                outStream << inSlices.qIndices;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              if (output==QUANTISED) {
+                //Write quantised transform output as 4 byte 2's comp values
+                clog << "Writing quantised transform coefficients to output file" << endl;
+                outStream << pictureio::wordWidth(4); // 4 bytes per sample
+                outStream << pictureio::signed_binary; // 2's comp output
+                outStream << yuvQCoeffs;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              // Inverse quantise in transform order
+              if (verbose) clog << "Inverse quantise" << endl;
+              const Picture yuvTransform = inverse_quantise_transform(yuvQCoeffs, inSlices.qIndices, qMatrix);
+
+              if (output==TRANSFORM) {
+                //Write transform output as 4 byte 2's comp values
+                clog << "Writing transform coefficients to output file" << endl;
+                outStream << pictureio::wordWidth(4); //4 bytes per sample
+                outStream << pictureio::signed_binary;
+                outStream << yuvTransform;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              // Inverse wavelet transform
+              if (verbose) clog << "Inverse transform" << endl;
+              const Picture outPicture = inverseWaveletTransform(yuvTransform, kernel, waveletDepth, picFormat);
+
+              // Copy picture to output frame
+              if (verbose) clog << "Copy picture to output frame" << endl;
+              if (interlaced) {
+                if (pic == 0) {
+                  const PictureFormat frameFormat(height, width, chromaFormat);
+                  outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
+                  outFrame->firstField(outPicture);
+
+                  pic++;
+                  delete fragmentReassemblingSlices[pichdr.picture_number];
+                  fragmentReassemblingSlices.erase(pichdr.picture_number);
+                  continue;
+                }
+
+                outFrame->secondField(outPicture);
+                pic = 0;
+              }
+              else { //progressive
+                const PictureFormat frameFormat(height, width, chromaFormat);
+                outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
+                outFrame->frame(outPicture);
+              }
+
+              if (verbose) clog << "Clipping output" << endl;
+              {
+                const int yMin = -utils::pow(2, lumaDepth-1);
+                const int yMax = utils::pow(2, lumaDepth-1)-1;
+                const int uvMin = -utils::pow(2, chromaDepth-1);
+                const int uvMax = utils::pow(2, chromaDepth-1)-1;
+                outFrame->frame(clip(*outFrame, yMin, yMax, uvMin, uvMax));
+              }
+
+              if (verbose) clog << "Writing decoded output file" << endl;
+              outStream << pictureio::wordWidth(bytes); // Set number of bytes per value in file
+              outStream << pictureio::left_justified;
+              outStream << pictureio::offset_binary;
+              outStream << pictureio::bitDepth(lumaDepth, chromaDepth); // Set luma and chroma bit depths
+              outStream << *outFrame;
+              if (!outStream) {
+                cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                return EXIT_FAILURE;
+              }
+
+              ++frame;
+              delete fragmentReassemblingSlices[pichdr.picture_number];
+              fragmentReassemblingSlices.erase(pichdr.picture_number);
+            }
+          }
+        }
+      }
+      break;
+    case HQ_FRAGMENT:
+      {
+        if (verbose) clog << "Parsing HQ Fragment" << endl;
+
+        PictureHeader pichdr;
+        Fragment frag;
+        du.stream() >> dataunitio::highQualityVBR(0, 1)
+                    >> pichdr
+                    >> frag;
+
+        if (frag.n_slices() == 0) {
+          if (verbose) clog << "Parsing Picture Header" << endl;
+          PicturePreamble preamble;
+          du.stream() >> preamble;
+          if (verbose) {
+            clog << "Picture number      : " << (int)pichdr.picture_number << endl;
+            clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
+            clog << "Transform Depth     : " << preamble.depth << endl;
+            clog << "Slices Horizontally : " << preamble.slices_x << endl;
+            clog << "Slices Verically    : " << preamble.slices_y << endl;
+            clog << "Slice Prefix        : " << preamble.slice_prefix << endl;
+            clog << "Slice Size Scalar   : " << preamble.slice_size_scalar << endl;
+          }
+
+          ySlices = preamble.slices_y;
+          xSlices = preamble.slices_x;
+          waveletDepth = preamble.depth;
+          kernel = preamble.wavelet_kernel;
+          sliceScalar = preamble.slice_size_scalar;
+          slicePrefix = preamble.slice_prefix;
+
+          if (!have_seq_hdr) {
+            clog << "Cannot decode frame, no previous sequence header!" << endl;
+          } else {
+            // Calculate number of slices per picture
+            const int pictureHeight = ( (interlaced) ? height/2 : height);
+            const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
+            const int paddedWidth = paddedSize(width, waveletDepth);
+
+            // Calculate the quantisation matrix
+            const Array1D qMatrix = quantMatrix(kernel, waveletDepth);
+            if (verbose) {
+              clog << "Quantisation matrix = " << qMatrix[0];
+              for (unsigned int i=1; i<qMatrix.size(); ++i) {
+                clog << ", " << qMatrix[i];
+              }
+              clog << endl;
+            }
+
+            // Construct an container to read the compressed data into.
+            const PictureFormat transformFormat(paddedPictureHeight, paddedWidth, chromaFormat);
+            fragmentReassemblingSlices[pichdr.picture_number] = new FragmentedPictureData(transformFormat, waveletDepth, ySlices, xSlices,
+                                                                                          slicePrefix, sliceScalar,
+                                                                                          qMatrix,
+                                                                                          pictureHeight, width, chromaFormat);
+
+            //du.stream() >> sliceio::highQualityVBR(slicePrefix, sliceScalar)
+          }
+        } else {
+          if (fragmentReassemblingSlices.count(pichdr.picture_number) == 0) {
+            clog << "Cannot decode slices as no picture header yet read for picture number " << pichdr.picture_number << endl;
+          } else {
+            if (verbose) {
+              clog << "Picture " << pichdr.picture_number << ": Reading " << frag.n_slices()
+                   << " slices, starting from (" << frag.slice_offset_x() << ", " << frag.slice_offset_y() << ")" << endl;
+            }
+            du.stream() >> sliceio::highQualityVBR(fragmentReassemblingSlices[pichdr.picture_number]->slice_prefix,
+                                                   fragmentReassemblingSlices[pichdr.picture_number]->slice_size_scalar);
+            du.stream() >> sliceio::ExpectedSlicesForFragment(frag);
+            du.stream() >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
+            fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded += frag.n_slices();
+
+            if (fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded >= fragmentReassemblingSlices[pichdr.picture_number]->slices_needed) {
+              Slices &inSlices = fragmentReassemblingSlices[pichdr.picture_number]->slices;
+              // Reorder quantised coefficients from slice order to transform order
+              if (verbose) clog << "Merge slices into full picture" << endl;
+              const Picture yuvQCoeffs = merge_blocks(inSlices.yuvSlices);
+
+              if (output==INDICES) {
+                //Write quantisation indices as 1 byte unsigned values
+                clog << "Writing quantisation indices to output file" << endl;
+                outStream << arrayio::wordWidth(1); //1 byte per sample
+                outStream << arrayio::unsigned_binary; // unsigned output
+                outStream << inSlices.qIndices;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              if (output==QUANTISED) {
+                //Write quantised transform output as 4 byte 2's comp values
+                clog << "Writing quantised transform coefficients to output file" << endl;
+                outStream << pictureio::wordWidth(4); // 4 bytes per sample
+                outStream << pictureio::signed_binary; // 2's comp output
+                outStream << yuvQCoeffs;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              // Inverse quantise in transform order
+              if (verbose) clog << "Inverse quantise" << endl;
+              const Picture yuvTransform = inverse_quantise_transform_np(yuvQCoeffs, inSlices.qIndices, fragmentReassemblingSlices[pichdr.picture_number]->qMatrix);
+
+              if (output==TRANSFORM) {
+                //Write transform output as 4 byte 2's comp values
+                clog << "Writing transform coefficients to output file" << endl;
+                outStream << pictureio::wordWidth(4); //4 bytes per sample
+                outStream << pictureio::signed_binary;
+                outStream << yuvTransform;
+                if (!outStream) {
+                  cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                  return EXIT_FAILURE; }
+                delete fragmentReassemblingSlices[pichdr.picture_number];
+                fragmentReassemblingSlices.erase(pichdr.picture_number);
+                continue; // omit rest of processing for this picture
+              }
+
+              // Inverse wavelet transform
+              if (verbose) clog << "Inverse transform" << endl;
+              const Picture outPicture = inverseWaveletTransform(yuvTransform, kernel, waveletDepth, fragmentReassemblingSlices[pichdr.picture_number]->picFormat);
+
+              // Copy picture to output frame
+              if (verbose) clog << "Copy picture to output frame" << endl;
+              if (interlaced) {
+                if (pic == 0) {
+                  const PictureFormat frameFormat(height, width, chromaFormat);
+                  outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
+
+                  outFrame->firstField(outPicture);
+                  pic++;
+                  delete fragmentReassemblingSlices[pichdr.picture_number];
+                  fragmentReassemblingSlices.erase(pichdr.picture_number);
+                  continue;
+                }
+
+                outFrame->secondField(outPicture);
+
+                pic = 0;
+              }
+              else { //progressive
+                const PictureFormat frameFormat(height, width, chromaFormat);
+                outFrame.reset(new Frame(frameFormat, interlaced, topFieldFirst));
+                outFrame->frame(outPicture);
+              }
+
+              if (verbose) clog << "Clipping output" << endl;
+              {
+                const int yMin = -utils::pow(2, lumaDepth-1);
+                const int yMax = utils::pow(2, lumaDepth-1)-1;
+                const int uvMin = -utils::pow(2, chromaDepth-1);
+                const int uvMax = utils::pow(2, chromaDepth-1)-1;
+                outFrame->frame(clip(*outFrame, yMin, yMax, uvMin, uvMax));
+              }
+
+              if (verbose) clog << "Writing decoded output file" << endl;
+              outStream << pictureio::wordWidth(bytes); // Set number of bytes per value in file
+              outStream << pictureio::left_justified;
+              outStream << pictureio::offset_binary;
+              outStream << pictureio::bitDepth(lumaDepth, chromaDepth); // Set luma and chroma bit depths
+              outStream << *outFrame;
+              if (!outStream) {
+                cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
+                return EXIT_FAILURE;
+              }
+
+              ++frame;
+              delete fragmentReassemblingSlices[pichdr.picture_number];
+              fragmentReassemblingSlices.erase(pichdr.picture_number);
+            }
+          }
+        }
       }
       break;
     default:

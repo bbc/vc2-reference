@@ -41,6 +41,7 @@ struct ProgramParams {
   int compressedBytes;
   enum Output output;
   FrameRate frame_rate;
+  int fragment_length;
   std::string error;
 };
 
