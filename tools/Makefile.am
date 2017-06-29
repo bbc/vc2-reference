@@ -1,0 +1,1 @@
+noinst_SCRIPTS = vc2streamdebugger convert_from_16p2 convert_to_16p2

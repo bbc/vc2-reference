@@ -116,6 +116,7 @@ AC_SUBST(configfiledir)
 
 AC_CONFIG_FILES([
 Makefile
+tools/Makefile
 src/Makefile
 src/boost/Makefile
 src/tclap/Makefile

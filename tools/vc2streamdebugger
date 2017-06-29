@@ -1,0 +1,482 @@
+#!/usr/bin/python
+
+#*****************************************************************************
+#* vc2streamdebugger: A simple utility that examines VC2 streams and prints
+#*                    descriptions of them
+#*****************************************************************************
+#* Copyright (C) 2014-2015 BBC
+#*
+#* Authors: James P. Weaver <james.barrett@bbc.co.uk>
+#*
+#* This program is free software; you can redistribute it and/or modify
+#* it under the terms of the GNU General Public License as published by
+#* the Free Software Foundation; either version 2 of the License, or
+#* (at your option) any later version.
+#*
+#* This program is distributed in the hope that it will be useful,
+#* but WITHOUT ANY WARRANTY; without even the implied warranty of
+#* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#* GNU General Public License for more details.
+#*
+#* You should have received a copy of the GNU General Public License
+#* along with this program; if not, write to the Free Software
+#* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
+#*
+#* This program is also available under a commercial proprietary license.
+#* For more information, contact us at ipstudio@bbc.co.uk.
+#*****************************************************************************
+
+
+class Decoder(object):
+    class CoderOverrun(Exception):
+        pass
+
+    def __init__(self, stream, offset, length):
+        self.stream = stream
+        self.offset = offset
+        self.bit = 7
+        self.max = offset + length
+
+    def read_bit(self):
+        b = (self.stream[self.offset] >> self.bit)&0x01
+        self.bit -= 1
+        if (self.bit < 0):
+            self.bit = 7
+            self.offset += 1
+            if self.offset > self.max:
+                raise CoderOverrun()
+        return b
+
+    def decode_bool(self):
+        return (self.read_bit() == 1)
+
+    def decode_uint(self):
+        value = 1
+        while (self.read_bit() == 0):
+            value <<= 1
+            if (self.read_bit() == 1):
+                value += 1
+        value -= 1
+        return value
+
+    def align(self):
+        if self.bit != 7:
+            self.bit = 7
+            self.offset += 1
+
+def parse_info(stream, offset, verbose):
+    if (stream[offset + 0] == 0x42 and
+        stream[offset + 1] == 0x42 and
+        stream[offset + 2] == 0x43 and
+        stream[offset + 3] == 0x44):
+        data = { "parse_code" : stream[offset + 4],
+                 "next_parse_offset" : ((stream[offset +  5] << 24) |
+                                        (stream[offset +  6] << 16) |
+                                        (stream[offset +  7] <<  8) |
+                                        (stream[offset +  8] <<  0)),
+                 "prev_parse_offset" : ((stream[offset +  9] << 24) |
+                                        (stream[offset + 10] << 16) |
+                                        (stream[offset + 11] <<  8) |
+                                        (stream[offset + 12] <<  0))
+                                        }
+        if (data["prev_parse_offset"] != 0):
+            if data["prev_parse_offset"] > offset:
+                data["prev_parse_offset_error"] = "Underrun"
+            if (stream[offset - data["prev_parse_offset"] + 0] != 0x42 or
+                stream[offset - data["prev_parse_offset"] + 1] != 0x42 or
+                stream[offset - data["prev_parse_offset"] + 2] != 0x43 or
+                stream[offset - data["prev_parse_offset"] + 3] != 0x44):
+                data["prev_parse_offset_error"] = "No parse info header at previous location"
+            prev_next = ((stream[offset - data["prev_parse_offset"] + 5] << 24) |
+                         (stream[offset - data["prev_parse_offset"] + 6] << 16) |
+                         (stream[offset - data["prev_parse_offset"] + 7] <<  8) |
+                         (stream[offset - data["prev_parse_offset"] + 8] <<  0))
+            if prev_next != data["prev_parse_offset"]:
+                data["prev_parse_offset_error"] = "Offsets do not match"
+        if (data["next_parse_offset"] != 0):
+            if data["next_parse_offset"] + offset + 12 >= len(stream):
+                data["next_parse_offset_error"] = "Overrun"
+            else:
+                if (stream[offset + data["next_parse_offset"] + 0] != 0x42 or
+                    stream[offset + data["next_parse_offset"] + 1] != 0x42 or
+                    stream[offset + data["next_parse_offset"] + 2] != 0x43 or
+                    stream[offset + data["next_parse_offset"] + 3] != 0x44):
+                    data["next_parse_offset_error"] = "No parse info header at next location"
+                next_prev = ((stream[offset + data["next_parse_offset"] + 9] << 24) |
+                            (stream[offset + data["next_parse_offset"] + 10] << 16) |
+                            (stream[offset + data["next_parse_offset"] + 11] <<  8) |
+                    (stream[offset + data["next_parse_offset"] + 12] <<  0))
+                if next_prev != data["next_parse_offset"]:
+                    data["next_parse_offset_error"] = "Offsets do not match"
+        return data
+    return None
+
+def print_formated_data(data):
+    print
+    l = [ 0, 0 ]
+    for d in data:
+        if (len(d) > 0):
+            if (len(d[0]) > l[0]):
+                l[0] = len(d[0])
+        if (len(d) > 1):
+            if (len(d[1]) > l[1]):
+                l[1] = len(d[1])
+    for d in data:
+        if (len(d) == 0):
+            print
+        elif (len(d) == 1):
+            print "    %*s" % (-l[0], d[0])
+        elif (len(d) == 2):
+            print "    %*s :  %*s" % (-l[0], d[0], l[1], d[1])
+
+def process_hq_transform_parameters(stream, offset, length, mvn):
+    dec = Decoder(stream, offset, length)
+    data = []
+    data.append(("Transform Parameters",))
+    data.append(("v" + str(mvn) + " syntax",))
+    data.append(())
+    slices_x = 0
+    slices_y = 0
+    prefix   = 0
+    scalar   = 1
+    horiz_depth = 0
+    try:
+        wvlt = str(dec.decode_uint())
+        depth = dec.decode_uint()
+        if mvn >= 3:
+            if dec.decode_bool():
+                wvlt += " (" + str(dec.decode_uint()) + "ho)"
+            if dec.decode_bool():
+                horiz_deph = dec.decode_uint()
+        slices_x = dec.decode_uint()
+        slices_y = dec.decode_uint()
+        prefix   = dec.decode_uint()
+        scalar   = dec.decode_uint()
+        data.append(("Wavelet", wvlt))
+        if mvn < 3:
+            data.append(("Depth", str(depth)))
+        else:
+            data.append(("Depth", str(depth) + " (" + str(horiz_depth) + "ho)"))
+        data.append(("Slices X", str(slices_x)))
+        data.append(("Slices Y", str(slices_y)))
+        data.append(("Prefix Bytes", str(prefix)))
+        data.append(("Slice Size Scalar", str(scalar)))
+        custom_matrix_flag = dec.decode_bool()
+        if (custom_matrix_flag):
+            if horiz_depth == 0:
+                data.append(("Custom Quantisation Matrix LL", str(dec.decode_uint())))
+            else:
+                data.append(("Custom Quantisation Matrix L", str(dec.decode_uint())))
+                for level in range(1,horiz_depth):
+                    data.append(("Custom Quantisation Matrix Level %d" % (level,)))
+                    data.append(("    H", str(dec.decode_uint())))
+            for level in range(horiz_depth+1,depth):
+                data.append(("Custom Quantisation Matrix Level %d" % (level,)))
+                data.append(("    HL", str(dec.decode_uint())))
+                data.append(("    LH", str(dec.decode_uint())))
+                data.append(("    HH", str(dec.decode_uint())))
+        dec.align()
+    except:
+        data.append(("!! Error in Decoding",))
+    print_formated_data(data)
+    return (dec.offset, slices_x, slices_y, prefix, scalar)
+
+def process_hq_slices(stream, offset, length, n_slices, prefix, scalar):
+    end = offset + length
+    qi = []
+    l = []
+    error = False
+    try:
+        for n in range(0, n_slices):
+            L = []
+            offset += prefix
+            if offset > end:
+                raise Decoder.CoderOverrun()
+            qi.append(stream[offset])
+            offset += 1
+            if offset > end:
+                raise Decoder.CoderOverrun()
+            L.append(stream[offset]*scalar)
+            offset += stream[offset]*scalar + 1
+            if offset > end:
+                raise Decoder.CoderOverrun()
+            L.append(stream[offset]*scalar)
+            offset += stream[offset]*scalar + 1
+            if offset > end:
+                raise Decoder.CoderOverrun()
+            L.append(stream[offset]*scalar)
+            offset += stream[offset]*scalar + 1
+            if offset > end:
+                raise Decoder.CoderOverrun()
+            l.append(L)
+    except:
+        error = True
+    print "Lengths and Quantisers"
+    print "======================"
+    print
+    try:
+        for i in range(0, len(l)):
+            print "%3d -> (%3d, %3d, %3d)" % (qi[i], l[i][0], l[i][1], l[i][2])
+    except:
+        pass
+    if error:
+        print "Overrun after %d slices" % (n, )
+
+def process_hq_picture(stream, offset, length, verbose, mvn):
+    end = offset + length
+    data = []
+    if (length < 5):
+        print "    !!  Error: Short picture"
+        return
+
+    data.append(("Picture Number", str((stream[offset + 0] << 24) +
+                                       (stream[offset + 1] << 16) +
+                                       (stream[offset + 2] <<  8) +
+                                       (stream[offset + 3] <<  0))))
+
+    print_formated_data(data)
+    (offset, slices_x, slices_y, prefix, scalar) = process_hq_transform_parameters(stream, offset + 4, length - 4, mvn)
+
+    print
+    print "    Slice Data Starts At: 0x%08x" % (offset,)
+    print
+
+    if verbose:
+        process_hq_slices(stream, offset, end - offset, slices_x*slices_y, prefix, scalar)
+
+def process_hq_fragment(stream, offset, length, verbose, mvn, transform_parameters=None):
+    end = offset + length
+    data = []
+    if mvn < 3:
+        data.append(("Warning: fragments not allowed in version %d" % mvn,))
+    if (length < 9):
+        print "    !!  Error: Short fragment"
+        return
+
+    data.append(("Picture Number", str((stream[offset + 0] << 24) +
+                                       (stream[offset + 1] << 16) +
+                                       (stream[offset + 2] <<  8) +
+                                       (stream[offset + 3] <<  0))))
+    fragment_length = (stream[offset + 4] << 8) + (stream[offset + 5] << 0)
+    data.append(("Fragment Length", str(fragment_length)))
+    slice_count = (stream[offset + 6] << 8) + (stream[offset + 7] << 0)
+    data.append(("Slices", str(slice_count)))
+
+    if (slice_count == 0):
+        print_formated_data(data)
+        return process_hq_transform_parameters(stream, offset + 8, length - 8, mvn)
+    else:
+        data.append(("Slice X Offset", str((stream[offset + 8] << 8) +
+                                        (stream[offset + 9] << 0))))
+        data.append(("Slice Y Offset", str((stream[offset + 10] << 8) +
+                                        (stream[offset + 11] << 0))))
+        print_formated_data(data)
+
+        offset += 12
+
+        print
+        print "    Slice Data Starts At: 0x%08x" % (offset,)
+        print
+
+        if verbose:
+            if transform_parameters is not None:
+                (_, slices_x, slices_y, prefix, scalar) = transform_parameters
+                process_hq_slices(stream, offset, fragment_length, slice_count, prefix, scalar)
+            else:
+                print "WARNING: Cannot process slice data without transform_parameters"
+        return transform_parameters
+
+def process_sequence_header(stream, offset, length, verbose):
+    dec = Decoder(stream, offset, length)
+    data = []
+    try:
+        mvn = dec.decode_uint()
+        data.append(("Major Version", str(mvn)))
+        data.append(("Minor Version", str(dec.decode_uint())))
+        data.append(("Profile", str(dec.decode_uint())))
+        data.append(("Level", str(dec.decode_uint())))
+        data.append(())
+        data.append(("Base Video Format", str(dec.decode_uint())))
+        data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Dimensions",))
+            data.append(("Frame Width", str(dec.decode_uint())))
+            data.append(("Frame Height", str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Color Diff",))
+            data.append(("Color Diff Format Index", str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Scan Format",))
+            data.append(("Source Sampling", str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Frame Rate",))
+            index = dec.decode_uint()
+            data.append(("index", str(index)))
+            if (mvn < 3 and index > 11):
+                data.append(("WARNING: Frame Rate Invalid for this Major Version",))
+            if (index == 0):
+                data.append(("Frame Rate", str(dec.decode_uint()) + "/" + str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Pixel Aspect Ratio",))
+            index = dec.decode_uint()
+            data.append(("index", str(index)))
+            if (index == 0):
+                data.append(("Aspect Ratio", str(dec.decode_uint()) + "/" + str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Clean Area",))
+            data.append(("Clean Width", str(dec.decode_uint())))
+            data.append(("Clean Height", str(dec.decode_uint())))
+            data.append(("Left Offset", str(dec.decode_uint())))
+            data.append(("Top Offset", str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Signal Range",))
+            index = dec.decode_uint()
+            if (mvn < 3 and index > 4):
+                data.append(("WARNING: Signal range invalid for this Major Version",))
+            data.append(("index", str(index)))
+            if (index == 0):
+                data.append(("Luma Offset", str(dec.decode_uint())))
+                data.append(("Luma Excursion", str(dec.decode_uint())))
+                data.append(("Chroma Offset", str(dec.decode_uint())))
+                data.append(("Chroma Excursion", str(dec.decode_uint())))
+            data.append(())
+        if (dec.decode_bool()):
+            data.append(("Custom Color Spec",))
+            index = dec.decode_uint()
+            if (mvn < 3 and index > 4):
+                data.append(("WARNING: Color spec invalid for this Major Version",))
+            data.append(("index", str(index)))
+            if (index == 0):
+                if (dec.decode_bool()):
+                    index = dec.decode_uint()
+                    if (mvn < 3 and index > 3):
+                        data.append(("WARNING: Color primaries invalid for this Major Version",))
+                    data.append(("Custom Color Primaries", str(index)))
+                if (dec.decode_bool()):
+                    index = dec.decode_uint()
+                    if (mvn < 3 and index > 3):
+                        data.append(("WARNING: Color Matrix invalid for this Major Version",))
+                    data.append(("Custom Color Matrix", str(index)))
+                if (dec.decode_bool()):
+                    index = dec.decode_uint()
+                    if (mvn < 3 and index > 3):
+                        data.append(("WARNING: Transfer function invalid for this Major Version",))
+                    data.append(("Custom Transfer Function", str(index)))
+            data.append(())
+        data.append(("Picture Coding Mode", str(dec.decode_uint())))
+    except:
+        print
+        print "  !!  Error when decoding sequence header"
+        print
+    else:
+        print_formated_data(data)
+
+    return mvn
+
+def parse_data_unit(stream, offset, code, length, verbose, mvn, transform_parameters):
+    if code == 0x00:
+        #Sequence Header
+        print
+        print "    -- Sequence Header -- "
+        print "      %d bytes of coded parameters" % (length,)
+        mvn = process_sequence_header(stream, offset, length, verbose)
+    elif code == 0x10:
+        #End of Sequence
+        print
+        print "    -- End of Sequence -- "
+    elif code == 0x20:
+        print
+        print "    -- Auxiliary Data -- "
+        print "      %d bytes of auxiliary data" % (length,)
+    elif code == 0x30:
+        print
+        print "    -- Padding Data -- "
+        print "      %d bytes of padding data" % (length,)
+    elif code == 0x08:
+        print
+        print "    -- Core Syntax Picture (Arithmetic Coding) -- "
+        print "      %d bytes of coded data" % (length,)
+    elif code == 0x48:
+        print
+        print "    -- Core Syntax Picture (Variable Length Coding) -- "
+        print "      %d bytes of coded data" % (length,)
+    elif code == 0xC8:
+        print
+        print "    -- Low Delay Picture -- "
+        print "      %d bytes of coded data" % (length,)
+    elif code == 0xE8:
+        print
+        print "    -- High Quality Picture -- "
+        print "      %d bytes of coded data" % (length,)
+        process_hq_picture(stream, offset, length, verbose, mvn)
+    elif code == 0xCC:
+        print
+        print "    -- Low Delay Fragment -- "
+        print "      %d bytes of coded data" % (length,)
+    elif code == 0xEC:
+        print
+        print "    -- High Quality Fragment -- "
+        print "      %d bytes of coded data" % (length,)
+        transform_parameters = process_hq_fragment(stream, offset, length, verbose, mvn, transform_parameters)
+    else:
+        print
+        print "    -- Unknown Parse Code -- "
+        print "      %d bytes of mysterious data" % (length,)
+    return (mvn, transform_parameters)
+
+def parse_vc2_stream(stream, verbose):
+    offset = 0
+    garbage = 0
+    mvn = 0
+    transform_parameters = None
+    while (offset < len(stream)):
+        data = parse_info(stream, offset, verbose)
+        if (data is not None):
+            if (garbage > 0):
+                print "0x%010x : [ GARBAGE    ]" % (offset - garbage)
+                garbage = 0
+            print "0x%010x : [ PARSE INFO ]" % (offset,)
+            print "    parse_code        : 0x%02x" % (data['parse_code'],)
+            print "    next_parse_offset : 0x%08x" % (data['next_parse_offset'],)
+            print "    prev_parse_offset : 0x%08x" % (data['prev_parse_offset'],)
+            if ("prev_parse_offset_error" in data):
+                print
+                print "    prev_parse_offset Error: %s" % (data['prev_parse_offset_error'],)
+            if ("next_parse_offset_error" in data):
+                print
+                print "    next_parse_offset Error: %s" % (data['next_parse_offset_error'],)
+            offset += 13
+
+            (mvn, transform_parameters) = parse_data_unit(stream, offset, data['parse_code'], data['next_parse_offset'] - 13, verbose, mvn, transform_parameters)
+            offset += data['next_parse_offset'] - 13 if (data['next_parse_offset'] > 13) else 0
+            print
+        else:
+            offset  += 1
+            garbage += 1
+    if (garbage > 0):
+        print "0x%010x : [ GARBAGE    ]" % (offset - garbage)
+        garbage = 0
+    print "0x%010x : [ END        ]" % (offset - garbage)
+
+if __name__ == "__main__":
+    import argparse
+    import struct
+
+    parser = argparse.ArgumentParser(description='VC2 Stream debugging tool.')
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('infilename', metavar='file', type=str,
+                    help='input vc2 stream file')
+
+    args = parser.parse_args()
+
+    f = open(args.infilename, "r")
+    data = f.read()
+    data = struct.unpack("!" + ('B'*len(data)), data)
+
+    parse_vc2_stream(data, args.verbose)
