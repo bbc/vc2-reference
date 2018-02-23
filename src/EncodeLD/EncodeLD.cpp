@@ -371,7 +371,7 @@ try { //Giant try block around all code to get error messages
     
       // Inverse quantise in transform order
       if (verbose) clog << "Inverse quantise" << endl;
-      const Picture yuvTransform = inverse_quantise_transform_np(quantisedSlices, qIndices, qMatrix);
+      const Picture yuvTransform = inverse_quantise_transform(quantisedSlices, qIndices, qMatrix);
 
       // Inverse wavelet transform
       if (verbose) clog << "Inverse transform" << endl;
