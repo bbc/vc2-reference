@@ -58,6 +58,7 @@ const int quant_factor(int q) {
 //  0x100000000, 0x1306FE0A3, 0x16A09E668, 0x1AE89F996, 0x200000000, 0x260DFC146, 0x2D413CCD0, 0x35D13F32B
   };
   if (q<0) q=0;
+  if (q>120) q=120;
   return static_cast<int>(lookup[q]);
 }
 
