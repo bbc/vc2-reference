@@ -66,14 +66,14 @@ table shows the ffmpeg pixel_format name for each of these formats:
 
     args = parser.parse_args()
 
-    f = open(args.infilename, "r")
+    f = open(args.infilename, "rb")
 
     outfilename = args.infilename + ".yuv"
 
-    data = f.read()
-    data = [ ((ord(data[2*n+0]) << 8) + (ord(data[2*n+1])) ) >> (16 - args.bits) for n in range(0,len(data)/2) ]
+    data = bytearray(f.read())
+    data = [ ((data[2*n+0] << 8) + (data[2*n+1]) ) >> (16 - args.bits) for n in range(0,len(data)//2) ]
 
-    of = open(outfilename, "w")
+    of = open(outfilename, "wb")
     if args.bits == 8:
         of.write(struct.pack( "<" + ("B" * len(data)), *data))
     else:

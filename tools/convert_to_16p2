@@ -66,19 +66,19 @@ ie. 16-bit yuv planar data samples with the active bits in the high order bits
 
     args = parser.parse_args()
 
-    f = open(args.infilename, "r")
+    f = open(args.infilename, "rb")
 
     outfilename = args.infilename + ".16p2"
 
-    data = f.read()
+    data = bytearray(f.read())
 
     if args.bits == 8:
         data = struct.unpack("<" + ("B" * len(data)), data)
     else:
-        data = struct.unpack("<" + ("H" * (len(data)/2)), data)
+        data = struct.unpack("<" + ("H" * (len(data)//2)), data)
 
     data = [ x << (16 - args.bits) for x in data ]
     
-    data = "".join(( "%c%c" % ((x >> 8)&0xFF, x&0xFF) for x in data))
-    of = open(outfilename, "w")
+    data = b"".join(( b"%c%c" % ((x >> 8)&0xFF, x&0xFF) for x in data))
+    of = open(outfilename, "wb")
     of.write(data)
