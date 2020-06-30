@@ -39,6 +39,10 @@ const Array2D adjust_quant_indices(const Array2D& qIndices, const int qMatrix) {
 
 const int quant_factor(int q) {
   // Lookup table valid q<120. For q>= 120 quant_factor(q) requires more than 32 bits.
+  if (q>119) {
+    throw std::logic_error("quantization index exceeds 119, corresponding quantization factor exceeds 32 bits.");
+	  return EXIT_FAILURE;
+  }
   static const unsigned int lookup[120] = {
     0x000000004, 0x000000005, 0x000000006, 0x000000007, 0x000000008, 0x00000000A, 0x00000000B, 0x00000000D,
     0x000000010, 0x000000013, 0x000000017, 0x00000001B, 0x000000020, 0x000000026, 0x00000002D, 0x000000036,
@@ -58,7 +62,6 @@ const int quant_factor(int q) {
 //  0x100000000, 0x1306FE0A3, 0x16A09E668, 0x1AE89F996, 0x200000000, 0x260DFC146, 0x2D413CCD0, 0x35D13F32B
   };
   if (q<0) q=0;
-  if (q>119) q=119;
   return static_cast<int>(lookup[q]);
 }
 
