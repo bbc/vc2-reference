@@ -70,12 +70,12 @@ ie. 16-bit yuv planar data samples with the active bits in the high order bits
 
     outfilename = args.infilename + ".16p2"
 
-    data = f.read()
+    data = bytearray(f.read())
 
     if args.bits == 8:
-        data = struct.unpack(b"<" + (b"B" * len(data)), data)
+        data = struct.unpack("<" + ("B" * len(data)), data)
     else:
-        data = struct.unpack(b"<" + (b"H" * (len(data)//2)), data)
+        data = struct.unpack("<" + ("H" * (len(data)//2)), data)
 
     data = [ x << (16 - args.bits) for x in data ]
     
