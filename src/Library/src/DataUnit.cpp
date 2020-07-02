@@ -919,6 +919,7 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   case 0xEC: d.type = HQ_FRAGMENT;     break;
   default:
     d.type = UNKNOWN_DATA_UNIT;
+    throw std::logic_error("Stream Error: Nonconformant data unit type.");
   }
 
   Bytes next_parse_offset(4);
