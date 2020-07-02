@@ -944,9 +944,37 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
     case HQ_PICTURE:
     case LD_FRAGMENT:
     case HQ_FRAGMENT:
-      // TO DO: Handle this case
-      throw std::logic_error("Not yet implemented next_parse_offset=0 for pictures and fragments.");
+    {
+      // Next_parse_offset artificially constructed by looking for next parse_info header
+      Bytes next_type(1);
+      Bytes next_next_parse_offset(4);
+      Bytes next_prev_parse_offset(4);
+      
+      std::streampos data_unit_position = stream.tellg();
+      std::streampos next_data_unit_position;
+
+      do{
+        // Find next parse_info header
+        stream >> dataunitio::synchronise;
+        next_data_unit_position = stream.tellg();
+        stream>>next_type>>next_next_parse_offset >> next_prev_parse_offset;
+      }
+      // Checks that future data unit is not spurious by verifying that the prev_parse_offset corresponds
+      // to the actual offset (10.6.2).
+      while((int)data_unit_position!=(int)next_data_unit_position-(int)next_prev_parse_offset+9);
+
+      // Rewind stream
+      stream.seekg(data_unit_position);
+      
+      int bufsize = ((unsigned long) next_prev_parse_offset) - 13;
+      char *buf = new char[bufsize];
+      if (buf == NULL)
+        throw std::logic_error("DataUnitIO: Couldn't allocate memory for Data Unit");
+      stream.read(buf, bufsize);
+      d.strm.str(std::string(buf, bufsize));
+      delete[] buf;
       break;
+    }
     default:
       throw std::logic_error("Stream Error: Nonconformant data unit type.");
       break;
