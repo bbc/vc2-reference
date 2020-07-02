@@ -927,7 +927,29 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   stream >> next_parse_offset >> prev_parse_offset;
 
   if ((unsigned long) next_parse_offset == 0) {
-    d.strm.str(std::string());
+    switch (d.type) {
+    // Nonconformant for these
+    case SEQUENCE_HEADER:
+    case AUXILIARY_DATA:
+    case PADDING_DATA:
+      throw std::logic_error("Stream Error: Next parse offset illegally set to zero.");
+      break;
+    // Conformant - No bits to read 
+    case END_OF_SEQUENCE:
+      d.strm.str(std::string());
+      break;
+    // Conformant - Unknown number of bits to read 
+    case LD_PICTURE:
+    case HQ_PICTURE:
+    case LD_FRAGMENT:
+    case HQ_FRAGMENT:
+      // TO DO: Handle this case
+      throw std::logic_error("Not yet implemented next_parse_offset=0 for pictures and fragments.");
+      break;
+    default:
+      throw std::logic_error("Stream Error: Nonconformant data unit type.");
+      break;
+    }
   } else {
     int bufsize = ((unsigned long) next_parse_offset) - 13;
     char *buf = new char[bufsize];
