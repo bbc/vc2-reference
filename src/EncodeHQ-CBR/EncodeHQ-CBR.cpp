@@ -111,7 +111,7 @@ const Array2D quantIndices(const Picture& coefficients,
           deltaYSS = trialYSS - prevYSS;
           prevYSS = trialYSS;
         } while (deltaYSS <0);
-        q = --trialQ;
+        q = trialQ - 1;
       }
       indices[row][column] = q;
     }
