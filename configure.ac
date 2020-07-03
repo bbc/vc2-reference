@@ -34,6 +34,7 @@ AC_CONFIG_HEADERS([config.h])
 VC2REFERENCE_LIBVERSION="0:0:0"
 AC_SUBST(VC2REFERENCE_LIBVERSION)
 
+AM_PROG_AR
 LT_PREREQ([2.2.6])
 LT_INIT(disable-static win32-dll)
 
@@ -116,6 +117,7 @@ AC_SUBST(configfiledir)
 
 AC_CONFIG_FILES([
 Makefile
+tests/Makefile
 tools/Makefile
 src/Makefile
 src/boost/Makefile
