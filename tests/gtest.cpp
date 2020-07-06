@@ -1,8 +1,9 @@
 #include "gtest/gtest.h"
+#include "Quantisation.h"
 
-TEST(CategoryTest,SpecificTest){
-    // Trivial test for testing the tests
-    ASSERT_EQ(0,0);
+TEST(QuantisationTest, QuantFactorTestZero){
+    
+    ASSERT_EQ(quant(12,0),12);
 }
 
 int main(int argc, char **argv){
