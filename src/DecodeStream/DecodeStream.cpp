@@ -253,10 +253,12 @@ try { //Giant try block around all code to get error messages
       }
       return EXIT_SUCCESS;
     case AUXILIARY_DATA:
-      throw std::logic_error("Auxiliary Data block not yet implemented.");
+      if (d.length()<0) throw std::logic_error("Auxilliary data length is nonconformant.");
+      inStream.seekg(d.length(),ios_base::cur);
       break;
     case PADDING_DATA:
-      throw std::logic_error("Padding Data block not yet implemented.");
+      if (d.length()<0) throw std::logic_error("Padding data length is nonconformant.");
+      inStream.seekg(d.length(),ios_base::cur);
       break;
     case LD_PICTURE:
       {
