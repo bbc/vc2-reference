@@ -204,6 +204,8 @@ try { //Giant try block around all code to get error messages
 
   while (true) {
     // Read data unit from stream
+    // Peek ahead to check for eof
+    inStream.get();
     if (inStream.eof()) {
       clog << "End of data stream reached successfully, exiting." << endl;
       return EXIT_SUCCESS;
@@ -212,6 +214,8 @@ try { //Giant try block around all code to get error messages
       clog << "An error has occured in the data stream, exiting." << endl;
       return EXIT_FAILURE;
     }
+    // Put byte back for subsequent processing
+    inStream.unget();
     
     DataUnit du;
     inStream >> du;
