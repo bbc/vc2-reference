@@ -204,9 +204,13 @@ try { //Giant try block around all code to get error messages
 
   while (true) {
     // Read data unit from stream
-    if (!inStream) {
-      // TODO: Add proper handling
-      break;
+    if (inStream.eof()) {
+      clog << "End of data stream reached successfully, exiting." << endl;
+      return EXIT_SUCCESS;
+    }
+    else if(inStream.fail()){
+      clog << "An error has occured in the data stream, exiting." << endl;
+      return EXIT_FAILURE;
     }
     
     DataUnit du;
@@ -250,9 +254,9 @@ try { //Giant try block around all code to get error messages
       break;
     case END_OF_SEQUENCE:
       if (verbose) {
-        clog << "End of Sequence after " << frame << " frames, exiting" << endl;
+        clog << "End of Sequence after " << frame << " frames" << endl;
       }
-      return EXIT_SUCCESS;
+      break;
     case AUXILIARY_DATA:
       if (du.length()<0) throw std::logic_error("Auxilliary data length is less than zero.");
       inStream.seekg(du.length(),ios_base::cur);
@@ -962,7 +966,6 @@ catch (const std::exception& ex) {
     cout << "Error: " << ex.what() << endl;
     return EXIT_FAILURE;
 }
-
   // Program should never reach here!
   return EXIT_FAILURE;
 }

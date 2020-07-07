@@ -100,16 +100,18 @@ const Array2D quantIndices(const Picture& coefficients,
         }
       }
       // Now try a few higher quantisers and check residual values
+      // Keeps going until residual stops improving
       {
         trialQ = q;
-        long long YSS = yss_for_slice(slices[row][column], trialQ, qMatrix);
+        long long prevYSS = yss_for_slice(slices[row][column], trialQ, qMatrix);
+        long long deltaYSS;
         do {
           trialQ++;
           long long trialYSS = yss_for_slice(slices[row][column], trialQ, qMatrix);
-          if (trialYSS > YSS)
-            break;
-          q = trialQ;
-        } while (true);
+          deltaYSS = trialYSS - prevYSS;
+          prevYSS = trialYSS;
+        } while (deltaYSS <0);
+        q = trialQ - 1;
       }
       indices[row][column] = q;
     }
