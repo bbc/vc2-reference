@@ -34,15 +34,13 @@ class DataUnit {
   public:
     DataUnit();
 
-    std::istream &stream();
+    int length();
     DataUnitType type;
     Bytes next_parse_offset;
     Bytes prev_parse_offset;
 
     friend std::istream& operator >> (std::istream& stream, DataUnit &d);
 
-  protected:
-    std::istringstream strm;
 };
 
 class PicturePreamble;

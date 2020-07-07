@@ -17,12 +17,11 @@
 
 DataUnit::DataUnit()
   : type (UNKNOWN_DATA_UNIT)
-  , strm ()
   , next_parse_offset(4)
   , prev_parse_offset(4)
   {}
 
-std::istream &DataUnit::stream() { return strm; }
+int DataUnit::length() { return next_parse_offset; }
 
 WrappedPicture::WrappedPicture(const unsigned long p,
                                const WaveletKernel w,
