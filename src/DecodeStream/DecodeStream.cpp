@@ -208,34 +208,15 @@ try { //Giant try block around all code to get error messages
       break;
     }
     
-    DataUnitType dataType;
-    Bytes type(1);
-    inStream >> type;
-
-    switch ((unsigned char)type) {
-    case 0x00: dataType = SEQUENCE_HEADER; break;
-    case 0x10: dataType = END_OF_SEQUENCE; break;
-    case 0x20: dataType = AUXILIARY_DATA;  break;
-    case 0x30: dataType = PADDING_DATA;    break;
-    case 0xC8: dataType = LD_PICTURE;      break;
-    case 0xE8: dataType = HQ_PICTURE;      break;
-    case 0xCC: dataType = LD_FRAGMENT;     break;
-    case 0xEC: dataType = HQ_FRAGMENT;     break;
-    default:
-      dataType = UNKNOWN_DATA_UNIT;
-      throw std::logic_error("Stream Error: Nonconformant data unit type.");
-    }
-
-    Bytes next_parse_offset(4);
-    Bytes prev_parse_offset(4);
-    inStream >> next_parse_offset >> prev_parse_offset;
+    DataUnit d;
+    inStream >> d;
 
     if (verbose) {
       clog << endl;
-      clog << "Have read data unit of type: " << dataType << endl;
+      clog << "Have read data unit of type: " << d.type << endl;
     }
 
-    switch (dataType) {
+    switch (d.type) {
     case SEQUENCE_HEADER:
       {
         if (verbose) clog << "Parsing Sequence Header" << endl << endl;

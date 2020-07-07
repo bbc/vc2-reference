@@ -17,7 +17,10 @@
 
 DataUnit::DataUnit()
   : type (UNKNOWN_DATA_UNIT)
-  , strm () {}
+  , strm ()
+  , next_parse_offset(4)
+  , prev_parse_offset(4)
+  {}
 
 std::istream &DataUnit::stream() { return strm; }
 
@@ -905,7 +908,26 @@ std::istream& dataunitio::synchronise(std::istream &stream) {
 }
 
 std::istream& operator >> (std::istream& stream, DataUnit &d) {
-  throw std::logic_error("Stream assignment to DataUnit is no longer supported.");
+
+  Bytes type(1);
+  stream >> type;
+
+  switch ((unsigned char)type) {
+  case 0x00: d.type = SEQUENCE_HEADER; break;
+  case 0x10: d.type = END_OF_SEQUENCE; break;
+  case 0x20: d.type = AUXILIARY_DATA;  break;
+  case 0x30: d.type = PADDING_DATA;    break;
+  case 0xC8: d.type = LD_PICTURE;      break;
+  case 0xE8: d.type = HQ_PICTURE;      break;
+  case 0xCC: d.type = LD_FRAGMENT;     break;
+  case 0xEC: d.type = HQ_FRAGMENT;     break;
+  default:
+    d.type = UNKNOWN_DATA_UNIT;
+    throw std::logic_error("Stream Error: Nonconformant data unit type.");
+  }
+
+  stream >> d.next_parse_offset >> d.prev_parse_offset;
+
   return stream;
 }
 

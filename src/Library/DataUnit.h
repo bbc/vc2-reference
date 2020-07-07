@@ -16,6 +16,7 @@
 #include "Picture.h"
 #include "Slices.h"
 #include "WaveletTransform.h"
+#include "VLC.h"
 
 enum DataUnitType {
   UNKNOWN_DATA_UNIT,
@@ -35,6 +36,8 @@ class DataUnit {
 
     std::istream &stream();
     DataUnitType type;
+    Bytes next_parse_offset;
+    Bytes prev_parse_offset;
 
     friend std::istream& operator >> (std::istream& stream, DataUnit &d);
 
