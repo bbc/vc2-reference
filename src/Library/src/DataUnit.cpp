@@ -21,7 +21,7 @@ DataUnit::DataUnit()
   , prev_parse_offset(4)
   {}
 
-int DataUnit::length() { return next_parse_offset; }
+int DataUnit::length() { return next_parse_offset-13; }
 
 WrappedPicture::WrappedPicture(const unsigned long p,
                                const WaveletKernel w,
@@ -907,6 +907,17 @@ std::istream& dataunitio::synchronise(std::istream &stream) {
 }
 
 std::istream& operator >> (std::istream& stream, DataUnit &d) {
+
+  // Read and check the 4 parse info prefix bytes
+  Bytes prefix1(1),prefix2(1),prefix3(1),prefix4(1);
+  stream >> prefix1 >> prefix2 >> prefix3 >> prefix4 ;
+  if (0x42 != (unsigned char)prefix1||
+      0x42 != (unsigned char)prefix2||
+      0x43 != (unsigned char)prefix3||
+      0x44 != (unsigned char)prefix4
+      ){
+        throw std::logic_error("Read bytes do not match expected parse_info_header.");
+      }
 
   Bytes type(1);
   stream >> type;

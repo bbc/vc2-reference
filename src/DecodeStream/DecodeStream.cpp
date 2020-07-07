@@ -177,7 +177,7 @@ try { //Giant try block around all code to get error messages
   int frame = 0;
   int pic = 0;
   inStream >> dataunitio::synchronise;
-
+  inStream.seekg(-4,ios_base::cur);
 
   /* In reality the decode can't happen without these values being set, but
      the compiler doesn't like leaving them uninitialised. */
@@ -953,10 +953,6 @@ try { //Giant try block around all code to get error messages
     default:
       continue;
     }
-    // Progresss stream by the 4 parse_info_header bytes
-    Bytes prefix(4);
-    inStream >> prefix;
-    // TO DO: Assert that we are still synchronised
   } //End frame loop
 
 } // end of try block
