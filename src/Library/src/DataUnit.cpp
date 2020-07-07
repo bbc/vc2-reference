@@ -17,9 +17,11 @@
 
 DataUnit::DataUnit()
   : type (UNKNOWN_DATA_UNIT)
-  , strm () {}
+  , next_parse_offset(4)
+  , prev_parse_offset(4)
+  {}
 
-std::istream &DataUnit::stream() { return strm; }
+int DataUnit::length() { return next_parse_offset-13; }
 
 WrappedPicture::WrappedPicture(const unsigned long p,
                                const WaveletKernel w,
@@ -905,6 +907,18 @@ std::istream& dataunitio::synchronise(std::istream &stream) {
 }
 
 std::istream& operator >> (std::istream& stream, DataUnit &d) {
+
+  // Read and check the 4 parse info prefix bytes
+  Bytes prefix1(1),prefix2(1),prefix3(1),prefix4(1);
+  stream >> prefix1 >> prefix2 >> prefix3 >> prefix4 ;
+  if (0x42 != (unsigned char)prefix1||
+      0x42 != (unsigned char)prefix2||
+      0x43 != (unsigned char)prefix3||
+      0x44 != (unsigned char)prefix4
+      ){
+        throw std::logic_error("Read bytes do not match expected parse_info_header.");
+      }
+
   Bytes type(1);
   stream >> type;
 
@@ -919,29 +933,10 @@ std::istream& operator >> (std::istream& stream, DataUnit &d) {
   case 0xEC: d.type = HQ_FRAGMENT;     break;
   default:
     d.type = UNKNOWN_DATA_UNIT;
+    throw std::logic_error("Stream Error: Unknown data unit type.");
   }
 
-  Bytes next_parse_offset(4);
-  Bytes prev_parse_offset(4);
-
-  stream >> next_parse_offset >> prev_parse_offset;
-
-  if ((unsigned long) next_parse_offset == 0) {
-    d.strm.str(std::string());
-  } else {
-    int bufsize = ((unsigned long) next_parse_offset) - 13;
-    char *buf = new char[bufsize];
-    if (buf == NULL)
-      throw std::logic_error("DataUnitIO: Couldn't allocate memory for Data Unit");
-    stream.read(buf, bufsize);
-    d.strm.str(std::string(buf, bufsize));
-    delete[] buf;
-  }
-
-  Bytes prefix(4);
-  stream >> prefix;
-
-  d.strm.copyfmt(stream);
+  stream >> d.next_parse_offset >> d.prev_parse_offset;
 
   return stream;
 }

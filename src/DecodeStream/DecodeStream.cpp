@@ -45,6 +45,7 @@ const char* details[] = {version, summary, description};
 #include "WaveletTransform.h"
 #include "Utils.h"
 #include "DataUnit.h"
+#include "VLC.h"
 
 using std::cout;
 using std::cin;
@@ -176,7 +177,8 @@ try { //Giant try block around all code to get error messages
   int frame = 0;
   int pic = 0;
   inStream >> dataunitio::synchronise;
-
+  // Jump back 4 bytes in the stream so the prefix header can be read and checked at the start of the loop
+  inStream.seekg(-4,ios_base::cur);
 
   /* In reality the decode can't happen without these values being set, but
      the compiler doesn't like leaving them uninitialised. */
@@ -202,6 +204,7 @@ try { //Giant try block around all code to get error messages
 
   while (true) {
     // Read data unit from stream
+    inStream.peek();
     if (inStream.eof()) {
       clog << "End of data stream reached successfully, exiting." << endl;
       return EXIT_SUCCESS;
@@ -210,7 +213,7 @@ try { //Giant try block around all code to get error messages
       clog << "An error has occured in the data stream, exiting." << endl;
       return EXIT_FAILURE;
     }
-
+    
     DataUnit du;
     inStream >> du;
 
@@ -223,10 +226,8 @@ try { //Giant try block around all code to get error messages
     case SEQUENCE_HEADER:
       {
         if (verbose) clog << "Parsing Sequence Header" << endl << endl;
-
         SequenceHeader seq_hdr;
-        du.stream() >> seq_hdr;
-        inStream.copyfmt(du.stream());
+        inStream >> seq_hdr;
 
         if (verbose) {
           clog << "height        = " << seq_hdr.height << endl;
@@ -257,15 +258,23 @@ try { //Giant try block around all code to get error messages
         clog << "End of Sequence after " << frame << " frames" << endl;
       }
       break;
+    case AUXILIARY_DATA:
+      if (du.length()<0) throw std::logic_error("Auxilliary data length is less than zero.");
+      inStream.seekg(du.length(),ios_base::cur);
+      break;
+    case PADDING_DATA:
+      if (du.length()<0) throw std::logic_error("Padding data length is less than zero.");
+      inStream.seekg(du.length(),ios_base::cur);
+      break;
     case LD_PICTURE:
       {
         if (verbose) clog << "Parsing Picture Header" << endl;
 
         PictureHeader pichdr;
         PicturePreamble preamble;
-        du.stream() >> dataunitio::lowDelay
-                    >> pichdr
-                    >> preamble;
+        inStream >> dataunitio::lowDelay
+                 >> pichdr
+                 >> preamble;
 
         if (verbose) {
           clog << "Picture number      : " << pichdr.picture_number << endl;
@@ -318,11 +327,11 @@ try { //Giant try block around all code to get error messages
             clog << "Reading compressed input frame number " << frame;
         }
         clog.flush(); // Make sure comments written to log file.
-        du.stream() >> sliceio::lowDelay(sliceBytes); // Read input in Low Delay mode
-        du.stream() >> inSlices; // Read the compressed input picture
+        inStream >> sliceio::lowDelay(sliceBytes); // Read input in Low Delay mode
+        inStream >> inSlices; // Read the compressed input picture
         // Check picture was read OK
-        if (!du.stream()) {
-          cerr << "\rFailed to read compressed frame" << endl;
+        if (!inStream) {
+          cerr << "\rFailed to read LD compressed frame" << endl;
           continue;
         }
         else if (verbose) clog << endl;
@@ -425,10 +434,9 @@ try { //Giant try block around all code to get error messages
 
         PictureHeader pichdr;
         PicturePreamble preamble;
-        du.stream() >> dataunitio::highQualityVBR(0, 1)
-                    >> pichdr
-                    >> preamble;
-
+        inStream >> dataunitio::highQualityVBR(0, 1)
+                 >> pichdr
+                 >> preamble;
         if (verbose) {
           clog << "Picture number      : " << pichdr.picture_number << endl;
           clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
@@ -481,11 +489,11 @@ try { //Giant try block around all code to get error messages
             clog << "Reading compressed input frame number " << frame;
         }
         clog.flush(); // Make sure comments written to log file.
-        du.stream() >> sliceio::highQualityVBR(slicePrefix, sliceScalar); // Read input in HQ VBR mode
-        du.stream() >> inSlices; // Read the compressed input picture
+        inStream >> sliceio::highQualityVBR(slicePrefix, sliceScalar); // Read input in HQ VBR mode
+        inStream >> inSlices; // Read the compressed input picture
         // Check picture was read OK
-        if (!du.stream()) {
-          cerr << "\rFailed to read compressed frame" << endl;
+        if (!inStream) {
+          cerr << "\rFailed to read HQ compressed frame" << endl;
           continue;
         }
         else if (verbose) clog << endl;
@@ -589,14 +597,14 @@ try { //Giant try block around all code to get error messages
 
         PictureHeader pichdr;
         Fragment frag;
-        du.stream() >> dataunitio::lowDelay
-                    >> pichdr
-                    >> frag;
+        inStream >> dataunitio::lowDelay
+                 >> pichdr
+                 >> frag;
 
         if (frag.n_slices() == 0) {
           if (verbose) clog << "Parsing Picture Header" << endl;
           PicturePreamble preamble;
-          du.stream() >> preamble;
+          inStream >> preamble;
           if (verbose) {
             clog << "Picture number      : " << pichdr.picture_number << endl;
             clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
@@ -654,9 +662,9 @@ try { //Giant try block around all code to get error messages
               clog << "Picture " << pichdr.picture_number << ": Reading " << frag.n_slices()
                    << " slices, starting from (" << frag.slice_offset_x() << ", " << frag.slice_offset_y() << ")" << endl;
             }
-            du.stream() >> sliceio::lowDelay(fragmentReassemblingSlices[pichdr.picture_number]->slice_bytes);
-            du.stream() >> sliceio::ExpectedSlicesForFragment(frag);
-            du.stream() >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
+            inStream >> sliceio::lowDelay(fragmentReassemblingSlices[pichdr.picture_number]->slice_bytes);
+            inStream >> sliceio::ExpectedSlicesForFragment(frag);
+            inStream >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
             fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded += frag.n_slices();
 
             if (fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded >= fragmentReassemblingSlices[pichdr.picture_number]->slices_needed) {
@@ -774,14 +782,14 @@ try { //Giant try block around all code to get error messages
 
         PictureHeader pichdr;
         Fragment frag;
-        du.stream() >> dataunitio::highQualityVBR(0, 1)
-                    >> pichdr
-                    >> frag;
+        inStream >> dataunitio::highQualityVBR(0, 1)
+                 >> pichdr
+                 >> frag;
 
         if (frag.n_slices() == 0) {
           if (verbose) clog << "Parsing Picture Header" << endl;
           PicturePreamble preamble;
-          du.stream() >> preamble;
+          inStream >> preamble;
           if (verbose) {
             clog << "Picture number      : " << (int)pichdr.picture_number << endl;
             clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
@@ -824,7 +832,6 @@ try { //Giant try block around all code to get error messages
                                                                                           qMatrix,
                                                                                           pictureHeight, width, chromaFormat);
 
-            //du.stream() >> sliceio::highQualityVBR(slicePrefix, sliceScalar)
           }
         } else {
           if (fragmentReassemblingSlices.count(pichdr.picture_number) == 0) {
@@ -834,10 +841,10 @@ try { //Giant try block around all code to get error messages
               clog << "Picture " << pichdr.picture_number << ": Reading " << frag.n_slices()
                    << " slices, starting from (" << frag.slice_offset_x() << ", " << frag.slice_offset_y() << ")" << endl;
             }
-            du.stream() >> sliceio::highQualityVBR(fragmentReassemblingSlices[pichdr.picture_number]->slice_prefix,
-                                                   fragmentReassemblingSlices[pichdr.picture_number]->slice_size_scalar);
-            du.stream() >> sliceio::ExpectedSlicesForFragment(frag);
-            du.stream() >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
+            inStream >> sliceio::highQualityVBR(fragmentReassemblingSlices[pichdr.picture_number]->slice_prefix,
+                                                fragmentReassemblingSlices[pichdr.picture_number]->slice_size_scalar);
+            inStream >> sliceio::ExpectedSlicesForFragment(frag);
+            inStream >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
             fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded += frag.n_slices();
 
             if (fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded >= fragmentReassemblingSlices[pichdr.picture_number]->slices_needed) {
