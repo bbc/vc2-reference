@@ -177,6 +177,7 @@ try { //Giant try block around all code to get error messages
   int frame = 0;
   int pic = 0;
   inStream >> dataunitio::synchronise;
+  // Jump back 4 bytes in the stream so the prefix header can be read and checked at the start of the loop
   inStream.seekg(-4,ios_base::cur);
 
   /* In reality the decode can't happen without these values being set, but
@@ -208,15 +209,15 @@ try { //Giant try block around all code to get error messages
       break;
     }
     
-    DataUnit d;
-    inStream >> d;
+    DataUnit du;
+    inStream >> du;
 
     if (verbose) {
       clog << endl;
-      clog << "Have read data unit of type: " << d.type << endl;
+      clog << "Have read data unit of type: " << du.type << endl;
     }
 
-    switch (d.type) {
+    switch (du.type) {
     case SEQUENCE_HEADER:
       {
         if (verbose) clog << "Parsing Sequence Header" << endl << endl;
@@ -253,12 +254,12 @@ try { //Giant try block around all code to get error messages
       }
       return EXIT_SUCCESS;
     case AUXILIARY_DATA:
-      if (d.length()<0) throw std::logic_error("Auxilliary data length is nonconformant.");
-      inStream.seekg(d.length(),ios_base::cur);
+      if (du.length()<0) throw std::logic_error("Auxilliary data length is less than zero.");
+      inStream.seekg(du.length(),ios_base::cur);
       break;
     case PADDING_DATA:
-      if (d.length()<0) throw std::logic_error("Padding data length is nonconformant.");
-      inStream.seekg(d.length(),ios_base::cur);
+      if (du.length()<0) throw std::logic_error("Padding data length is less than zero.");
+      inStream.seekg(du.length(),ios_base::cur);
       break;
     case LD_PICTURE:
       {
@@ -267,8 +268,8 @@ try { //Giant try block around all code to get error messages
         PictureHeader pichdr;
         PicturePreamble preamble;
         inStream >> dataunitio::lowDelay
-                    >> pichdr
-                    >> preamble;
+                 >> pichdr
+                 >> preamble;
 
         if (verbose) {
           clog << "Picture number      : " << pichdr.picture_number << endl;
@@ -429,8 +430,8 @@ try { //Giant try block around all code to get error messages
         PictureHeader pichdr;
         PicturePreamble preamble;
         inStream >> dataunitio::highQualityVBR(0, 1)
-                    >> pichdr
-                    >> preamble;
+                 >> pichdr
+                 >> preamble;
         if (verbose) {
           clog << "Picture number      : " << pichdr.picture_number << endl;
           clog << "Wavelet Kernel      : " << preamble.wavelet_kernel << endl;
@@ -592,8 +593,8 @@ try { //Giant try block around all code to get error messages
         PictureHeader pichdr;
         Fragment frag;
         inStream >> dataunitio::lowDelay
-                    >> pichdr
-                    >> frag;
+                 >> pichdr
+                 >> frag;
 
         if (frag.n_slices() == 0) {
           if (verbose) clog << "Parsing Picture Header" << endl;
@@ -777,8 +778,8 @@ try { //Giant try block around all code to get error messages
         PictureHeader pichdr;
         Fragment frag;
         inStream >> dataunitio::highQualityVBR(0, 1)
-                    >> pichdr
-                    >> frag;
+                 >> pichdr
+                 >> frag;
 
         if (frag.n_slices() == 0) {
           if (verbose) clog << "Parsing Picture Header" << endl;
@@ -826,7 +827,6 @@ try { //Giant try block around all code to get error messages
                                                                                           qMatrix,
                                                                                           pictureHeight, width, chromaFormat);
 
-            //inStream >> sliceio::highQualityVBR(slicePrefix, sliceScalar)
           }
         } else {
           if (fragmentReassemblingSlices.count(pichdr.picture_number) == 0) {
@@ -837,7 +837,7 @@ try { //Giant try block around all code to get error messages
                    << " slices, starting from (" << frag.slice_offset_x() << ", " << frag.slice_offset_y() << ")" << endl;
             }
             inStream >> sliceio::highQualityVBR(fragmentReassemblingSlices[pichdr.picture_number]->slice_prefix,
-                                                   fragmentReassemblingSlices[pichdr.picture_number]->slice_size_scalar);
+                                                fragmentReassemblingSlices[pichdr.picture_number]->slice_size_scalar);
             inStream >> sliceio::ExpectedSlicesForFragment(frag);
             inStream >> fragmentReassemblingSlices[pichdr.picture_number]->slices;
             fragmentReassemblingSlices[pichdr.picture_number]->slices_decoded += frag.n_slices();
