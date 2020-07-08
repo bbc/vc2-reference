@@ -16,7 +16,7 @@ fi;
 
 AS_NANO(VC2REFERENCE_CVS=no,VC2REFERENCE_CVS=yes)
 
-AM_INIT_AUTOMAKE([1.11 silent-rules subdir-objects])
+AM_INIT_AUTOMAKE([1.11 silent-rules])
 AM_SILENT_RULES([yes])
 
 # Version number that will be appended to the library filename
