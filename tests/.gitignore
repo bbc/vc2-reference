@@ -1,5 +1,3 @@
-.libs
-gtest
-gtest.log
-gtest.trs
-test-suite.log
+*
+!*.cpp
+!Makefile.am
