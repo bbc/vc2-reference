@@ -19,16 +19,21 @@ MAIN_CPPFLAGS :=    -I$(top_srcdir)/src/ \
 
 MAIN_LDFLAGS := -pthread
 
-check_PROGRAMS = arrays quantisation
+check_PROGRAMS = arrays quantisation dataunit
 
 arrays_SOURCES = Arrays.cpp
 arrays_LDADD = $(MAIN_LDADD)
 arrays_LDFLAGS = $(MAIN_LDFLAGS)
 arrays_CPPFLAGS = $(MAIN_CPPFLAGS)
 
+dataunit_SOURCES = DataUnit.cpp
+dataunit_LDADD = $(MAIN_LDADD)
+dataunit_LDFLAGS = $(MAIN_LDFLAGS)
+dataunit_CPPFLAGS = $(MAIN_CPPFLAGS)
+
 quantisation_SOURCES = Quantisation.cpp
 quantisation_LDADD = $(MAIN_LDADD)
 quantisation_LDFLAGS = $(MAIN_LDFLAGS)
 quantisation_CPPFLAGS = $(MAIN_CPPFLAGS)
 
-TESTS = arrays quantisation
+TESTS = arrays quantisation dataunit
