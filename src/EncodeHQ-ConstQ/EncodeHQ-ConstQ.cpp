@@ -336,7 +336,7 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << dataunitio::highQualityVBR(sliceScalar, sliceScalar); // Write output in HQ VBR mode
+        outStream << dataunitio::highQualityVBR(slicePrefix, sliceScalar); // Write output in HQ VBR mode
         outStream << outWrapped;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
