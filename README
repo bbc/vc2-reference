@@ -1,8 +1,8 @@
 VC-2 Reference Encoder and Decoder
 ----------------------------------
 
-Copyright (C) Tim Borer and James Weaver 2010-2015, British
-Broadcasting Corporation.
+Copyright (C) Tim Borer, James Weaver and Galen Reich 2010-2020,
+British Broadcasting Corporation.
 < james.barrett@bbc.co.uk >
 
 
@@ -22,6 +22,13 @@ In addition code is included for decoders which take in the compressed
 bytes of a VC-2 frame without any surrounding headers. These are not
 compiled by default but can be enabled with the
 --enable-other-decoders flag to configure.
+
+The googletest testing framework can be used to run tests on the
+repository. This requires the googletest submodule to be added by
+  git submodule init
+  git submodule update
+(or using --recurse-submodules when cloning)
+Then using `make check' to build and run the tests.
 
 Additional help on each executable will be printed if it is run with
 the --help parameter.
