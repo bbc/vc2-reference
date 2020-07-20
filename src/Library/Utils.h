@@ -1,14 +1,14 @@
 /*********************************************************************/
 /* Utils.h                                                           */
-/* Author: Tim Borer                                                 */
-/* This version 7th July 2011                                        */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Declares utility functions listed below (in namespace utils)      */
 /*   fileSize: returns the size of a file in bytes                   */
 /*   pow: raises an integer to an integer power                      */
 /*   intlog2: the number of bits needed to express a number          */
 /*   rationalise: the simplest form of a rational number             */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #ifndef UTILS_25FEB10
@@ -28,6 +28,10 @@ const int pow(int base, int exp);
 
 // Another utility function which counts the bits needed to express a number
 const int intlog2(int value);
+
+// Calculate the picture number given a frame number, picture number, and number 
+// of pictures per frame - 1 or 2 (interlaced)
+unsigned long getPictureNumber(int fieldNumber, unsigned long long frameNumber, const int fieldsPerFrame);
 
 struct Rational {
   int numerator;

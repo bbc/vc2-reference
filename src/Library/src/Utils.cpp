@@ -1,14 +1,14 @@
 /*********************************************************************/
 /* Utils.cpp                                                         */
-/* Author: Tim Borer                                                 */
-/* This version 23rd June 2011                                       */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines utility functions listed below (in namespace utils)       */
 /*   fileSize: returns the size of a file in bytes                   */
 /*   pow: raises an integer to an integer power                      */
 /*   intlog2: the number of bits needed to express a number          */
 /*   rationalise: the simplest form of a rational number             */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include "Utils.h"
@@ -45,6 +45,21 @@ const int utils::intlog2(int value) {
     ++log;
   }
   return log;
+}
+
+// Calculate the picture number given a frame number, picture number, and number 
+// of pictures per frame - 1 or 2 (interlaced)
+unsigned long utils::getPictureNumber(int fieldNumber, unsigned long long frameNumber, const int fieldsPerFrame){
+
+  // Input checking
+  if (fieldNumber < 0) throw std::logic_error("field number should be positive");
+  if (fieldNumber > fieldsPerFrame) throw std::logic_error("field number exceeds number of fields per frame");
+  if (fieldsPerFrame!=1 && fieldsPerFrame!=2) throw std::logic_error("number of fields per frame should be 1 (progressive) or 2 (interlaced)");
+
+  const unsigned long long bigPictureNumber = fieldNumber + frameNumber*fieldsPerFrame;
+  const unsigned long long bitLimit32 = (1ULL) << 32;
+  // Wrap round to 0 after 2^32 -1 bits
+  return bigPictureNumber % bitLimit32;
 }
 
 const utils::Rational utils::rationalise(const int numerator,
