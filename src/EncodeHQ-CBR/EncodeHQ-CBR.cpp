@@ -1,13 +1,13 @@
 /*********************************************************************/
 /* EncodeHQCBR.cpp                                                   */
-/* Author: Tim Borer                                                 */
-/* This version 18th September 2013                                  */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Reads image data in from a planar file.                           */
 /* Compresses image using VC-2 High Quality profile @CBR.            */
 /* Write compressed transform data out (not complete stream).        */
 /* It is not necessarily complet nor korrect.                        */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 const char version[] = __DATE__ " @ " __TIME__ ;
@@ -285,7 +285,7 @@ try { //Giant try block around all code to get error messages
   Array2D uDiff(format.chromaShape()); // used for PSNR calculation only
   Array2D vDiff(format.chromaShape()); // used for PSNR calculation only
 
-  int frame = 0;
+  unsigned long long frame = 0;
   if (output==STREAM) {
     if (verbose) clog << endl << "Writing Sequence Header" << endl << endl;
     outStream << dataunitio::start_sequence;
@@ -401,7 +401,8 @@ try { //Giant try block around all code to get error messages
 
       if (output==STREAM) {
         const Slices outSlices(slices, waveletDepth, qIndices);
-        const WrappedPicture outWrapped(frame,
+        unsigned long pictureNumber = utils::getPictureNumber(pic, frame, framePics);
+        const WrappedPicture outWrapped(pictureNumber,
                                         kernel,
                                         waveletDepth,
                                         xSlices,
