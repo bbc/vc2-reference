@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* EncodeParams.cpp                                                  */
-/* Author: Tim Borer,  BBC Research                                  */
-/* This version 19th September 2013                                  */
+/* Author: Tim Borer and Galen Reich,  BBC Research & Development    */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines getting program parameters from command line.             */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include "EncodeParams.h"
@@ -76,7 +76,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     SwitchArg verbosity("v", "verbose", "Output extra information to standard log", cmd);
     // "cla" prefix == command line argument
     ValueArg<Output> cla_output("o", "output", "Program output (Transform, Quantised, Indices, Packaged, Stream, Decoded, PSNR)", false, STREAM, "string", cmd);
-    ValueArg<int> cla_quantIndex("q", "quantIndex", "Quantiser index (0 to 63)", true, 0, "integer", cmd);
+    ValueArg<int> cla_quantIndex("q", "quantIndex", "Quantiser index (0 to 119)", true, 0, "integer", cmd);
     ValueArg<int> cla_hSliceSize("a", "hSlice", "Horizontical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
     ValueArg<int> cla_vSliceSize("u", "vSlice", "Vertical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
     ValueArg<int> cla_waveletDepth("d", "waveletDepth", "Wavelet transform depth", true, 0, "integer", cmd);
@@ -160,7 +160,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
       throw std::invalid_argument("invalid wavelet kernel");
     if (waveletDepth<1)
       throw std::invalid_argument("wavelet depth must be 1 or more");
-    if ((qIndex<0) || (qIndex>63))
+    if ((qIndex<0) || (qIndex>119))
       throw std::invalid_argument("quantisation index must be in the range 0 to 119");
 
     if (sliceScalar < 1)
