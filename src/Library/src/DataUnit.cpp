@@ -432,44 +432,8 @@ SequenceHeader::SequenceHeader( Profile profile,
   }
 }
 
+}
 
-struct video_format {
-  video_format()
-    : major_version(0)
-    , minor_version(0)
-    , profile (0)
-    , level (0)
-    , base_video_format (0)
-    , custom_dimensions_flag (false)
-    , frame_width (0)
-    , frame_height (0)
-    , custom_scan_format_flag (false)
-    , source_sampling (0)
-    , custom_signal_range_flag (false)
-    , bitdepth (0)
-    , custom_frame_rate_flag (false)
-    , frame_rate (FR0) {}
-
-  video_format(const SequenceHeader &fmt);
-
-  int major_version;
-  int minor_version;
-  int profile;
-  int level;
-  int base_video_format;
-  bool custom_dimensions_flag;
-  int frame_width;
-  int frame_height;
-  bool custom_color_diff_format_flag;
-  int color_diff_format;
-  bool custom_scan_format_flag;
-  int source_sampling;
-  bool custom_signal_range_flag;
-  int bitdepth;
-  bool custom_frame_rate_flag;
-  FrameRate frame_rate;
-  int picture_coding_mode;
-};
 
 bool PictureFormatMatches(const SequenceHeader &fmt,
                           const int w,
@@ -485,6 +449,40 @@ bool PictureFormatMatches(const SequenceHeader &fmt,
 }
 
 
+video_format::video_format()
+    : major_version(0)
+    , minor_version(0)
+    , profile (0)
+    , level (0)
+    , base_video_format (0)
+    , custom_dimensions_flag (false)
+    , frame_width (0)
+    , frame_height (0)
+    , custom_color_diff_format_flag (false)
+    , color_diff_format(0)
+    , custom_scan_format_flag (false)
+    , source_sampling (0)
+    , custom_frame_rate_flag (false)
+    , frame_rate (FR0)
+    , custom_pixel_aspect_ratio_flag (false) 
+    , pixel_aspect_ratio (0)            
+    , custom_clean_area_flag (false)
+    , clean_width (0)
+    , clean_height (0)
+    , left_offset (0)
+    , top_offset (0)
+    , custom_signal_range_flag (false)
+    , bitdepth (0)
+    , custom_color_spec_flag (false)
+    , color_spec (0)
+    , custom_color_primaries_flag (0)
+    , color_primaries (0)
+    , custom_color_matrix_flag (false)
+    , color_matrix (0)
+    , custom_transfer_function_flag (false)
+    , transfer_function (0)
+    , top_field_first (false) {}
+
 video_format::video_format(const SequenceHeader &fmt)
     : major_version(0)
     , minor_version(0)
@@ -498,10 +496,28 @@ video_format::video_format(const SequenceHeader &fmt)
     , color_diff_format(0)
     , custom_scan_format_flag (false)
     , source_sampling (0)
+    , custom_frame_rate_flag (false)
+    , frame_rate (FR0)
+    , custom_pixel_aspect_ratio_flag (false) 
+    , pixel_aspect_ratio (0)            
+    , custom_clean_area_flag (false)
+    , clean_width (0)
+    , clean_height (0)
+    , left_offset (0)
+    , top_offset (0)
     , custom_signal_range_flag (false)
     , bitdepth (0)
-    , custom_frame_rate_flag (false)
-    , frame_rate (FR0) {
+    , custom_color_spec_flag (false)
+    , color_spec (0)
+    , custom_color_primaries_flag (0)
+    , color_primaries (0)
+    , custom_color_matrix_flag (false)
+    , color_matrix (0)
+    , custom_transfer_function_flag (false)
+    , transfer_function (0)
+    , top_field_first (false)
+
+     {
 
   major_version = fmt.major_version;
   minor_version = fmt.minor_version;

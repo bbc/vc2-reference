@@ -151,7 +151,45 @@ public:
   int colorMatrix;
   int transferFunction;
 };
+struct video_format {
+
+  video_format();
+  video_format(const SequenceHeader &fmt);
+
+  int major_version;
+  int minor_version;
+  int profile;
+  int level;
+  int base_video_format;
+  
+  bool custom_dimensions_flag;
+  int frame_width;
+  int frame_height;
+  bool custom_color_diff_format_flag;
+  int color_diff_format;
+  bool custom_scan_format_flag;
+  int source_sampling;
+  bool custom_frame_rate_flag;
+  FrameRate frame_rate;
+  bool custom_pixel_aspect_ratio_flag;
+  int pixel_aspect_ratio;          
+  bool custom_clean_area_flag;
+  int clean_width;
+  int clean_height;
+  int left_offset;
+  int top_offset;
+  bool custom_signal_range_flag;
   int bitdepth;
+  bool custom_color_spec_flag;
+  int color_spec;
+  bool custom_color_primaries_flag;
+  int color_primaries;
+  bool custom_color_matrix_flag;
+  int color_matrix;
+  bool custom_transfer_function_flag;
+  int transfer_function;
+
+  bool top_field_first;
 };
 
 class PictureHeader {
