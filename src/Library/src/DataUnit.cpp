@@ -469,14 +469,36 @@ bool PictureFormatMatches(const SequenceHeader &fmt,
                           const int h,
                           const ColourFormat cf,
                           const FrameRate r,
-                          const int bd) {
+                          const int bd,
+                          const bool topFieldFirst) {
   return ((fmt.width == w) &&
           (fmt.height == h) &&
           (fmt.chromaFormat == cf) &&
           (fmt.frameRate == r) &&
-          (fmt.bitdepth == bd));
+          (fmt.bitdepth == bd) &&
+          (fmt.topFieldFirst == topFieldFirst));
 }
 
+bool PictureFormatMatches(const SequenceHeader &fmt,
+                          const int index) {
+
+  const SequenceHeader base = getDefaultSourceParameters(index);
+
+return ((fmt.width == base.width) &&
+        (fmt.height == base.height) &&
+        (fmt.chromaFormat == base.chromaFormat) &&
+        (fmt.frameRate == base.frameRate)&&
+        (fmt.bitdepth == base.bitdepth)&&
+        (fmt.interlace == base.interlace) &&
+        (fmt.topFieldFirst == base.topFieldFirst) &&
+        // Optional
+        ((fmt.pixelAspectRatio==-1)||(fmt.pixelAspectRatio == base.pixelAspectRatio)) &&
+        ((fmt.cleanWidth==-1)||(fmt.cleanWidth == base.cleanWidth))&&
+        ((fmt.cleanHeight==-1)||(fmt.cleanHeight == base.cleanHeight))&&
+        ((fmt.leftOffset==-1)||(fmt.leftOffset == base.leftOffset))&&
+        ((fmt.topOffset==-1)||(fmt.topOffset == base.topOffset))&&
+        ((fmt.colorSpec==-1)||(fmt.colorSpec == base.colorSpec)));
+}
 
 video_format::video_format()
     : major_version(0)
@@ -564,9 +586,9 @@ video_format::video_format(const SequenceHeader &fmt)
 
   if (fmt.interlace) {
     // Level 2
-    if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10))      { base_video_format =  7; level = 2; }
-    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10)) { base_video_format =  8; level = 2; }
-    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10)) { base_video_format = 22; level = 2; }
+    if      (PictureFormatMatches(fmt, 7))      { base_video_format =  7; level = 2; }
+    else if (PictureFormatMatches(fmt, 8)) { base_video_format =  8; level = 2; }
+    else if (PictureFormatMatches(fmt, 22)) { base_video_format = 22; level = 2; }
     else if (fmt.chromaFormat == CF422 &&
              fmt.width == 720 &&
              fmt.height >= 480 &&
@@ -581,45 +603,45 @@ video_format::video_format(const SequenceHeader &fmt)
     }
 
     // Level 3
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10)) { base_video_format = 11; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10)) { base_video_format = 12; level = 3; }
+    else if (PictureFormatMatches(fmt, 11)) { base_video_format = 11; level = 3; }
+    else if (PictureFormatMatches(fmt, 12)) { base_video_format = 12; level = 3; }
   } else {
     // Level 1
-    if (PictureFormatMatches(fmt, 176, 120, CF420, FR15000_1001,      8)) { base_video_format = 1; level = 1; }
-    else if (PictureFormatMatches(fmt, 176, 144, CF420, FR25_2,       8)) { base_video_format = 2; level = 1; }
-    else if (PictureFormatMatches(fmt, 352, 240, CF420, FR15000_1001, 8)) { base_video_format = 3; level = 1; }
-    else if (PictureFormatMatches(fmt, 352, 288, CF420, FR25_2,       8)) { base_video_format = 4; level = 1; }
-    else if (PictureFormatMatches(fmt, 704, 480, CF420, FR15000_1001, 8)) { base_video_format = 5; level = 1; }
-    else if (PictureFormatMatches(fmt, 704, 576, CF420, FR25_2,       8)) { base_video_format = 6; level = 1; }
+    if      (PictureFormatMatches(fmt, 1)) { base_video_format = 1; level = 1; }
+    else if (PictureFormatMatches(fmt, 2)) { base_video_format = 2; level = 1; }
+    else if (PictureFormatMatches(fmt, 3)) { base_video_format = 3; level = 1; }
+    else if (PictureFormatMatches(fmt, 4)) { base_video_format = 4; level = 1; }
+    else if (PictureFormatMatches(fmt, 5)) { base_video_format = 5; level = 1; }
+    else if (PictureFormatMatches(fmt, 6)) { base_video_format = 6; level = 1; }
 
     // Level 2
-    else if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10)) { base_video_format =  7; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10)) { base_video_format =  8; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10)) { base_video_format = 22; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10, false)) { base_video_format =  7; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10, true)) { base_video_format =  8; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10, false)) { base_video_format = 22; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
 
     // Level 3
-    else if (PictureFormatMatches(fmt, 1280, 720, CF422, FR60000_1001,  10)) { base_video_format =  9; level = 3; }
-    else if (PictureFormatMatches(fmt, 1280, 720, CF422, FR50,          10)) { base_video_format = 10; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10)) { base_video_format = 11; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10)) { base_video_format = 12; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR60000_1001, 10)) { base_video_format = 13; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR50,         10)) { base_video_format = 14; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR24000_1001, 10)) { base_video_format = 21; level = 3; }
+    else if (PictureFormatMatches(fmt, 9)) { base_video_format =  9; level = 3; }
+    else if (PictureFormatMatches(fmt, 10)) { base_video_format = 10; level = 3; }
+    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10, true)) { base_video_format = 11; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10, true)) { base_video_format = 12; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 13)) { base_video_format = 13; level = 3; }
+    else if (PictureFormatMatches(fmt, 14)) { base_video_format = 14; level = 3; }
+    else if (PictureFormatMatches(fmt, 21)) { base_video_format = 21; level = 3; }
 
     // Level 4
-    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR24, 12)) { base_video_format = 15; level = 4; }
-    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR48, 12)) { base_video_format = 15; level = 4; custom_frame_rate_flag = true; frame_rate = FR48; }
+    else if (PictureFormatMatches(fmt, 15)) { base_video_format = 15; level = 4; }
+    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR48, 12, true)) { base_video_format = 15; level = 4; custom_frame_rate_flag = true; frame_rate = FR48; }
 
     // Level 5
-    else if (PictureFormatMatches(fmt, 4096, 2160, CF444, FR24, 12)) { base_video_format = 16; level = 5; }
+    else if (PictureFormatMatches(fmt, 16)) { base_video_format = 16; level = 5; }
 
     // Level 6
-    else if (PictureFormatMatches(fmt, 3840, 2160, CF422, FR60000_1001, 10)) { base_video_format = 17; level = 6; }
-    else if (PictureFormatMatches(fmt, 3840, 2160, CF422, FR50,         10))         { base_video_format = 18; level = 6; }
+    else if (PictureFormatMatches(fmt, 17)) { base_video_format = 17; level = 6; }
+    else if (PictureFormatMatches(fmt, 18)) { base_video_format = 18; level = 6; }
 
     // Level 7
-    else if (PictureFormatMatches(fmt, 7680, 4320, CF422, FR60000_1001, 10)) { base_video_format = 19; level = 7; }
-    else if (PictureFormatMatches(fmt, 7680, 4320, CF422, FR50,         10)) { base_video_format = 20; level = 7; }
+    else if (PictureFormatMatches(fmt, 19)) { base_video_format = 19; level = 7; }
+    else if (PictureFormatMatches(fmt, 20)) { base_video_format = 20; level = 7; }
   }
 
   if (base_video_format == 0) {
