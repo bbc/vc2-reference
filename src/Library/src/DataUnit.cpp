@@ -843,7 +843,6 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
 }
 
 std::istream& operator >> (std::istream& stream, video_format& fmt) {
-  // To do: Custom parameters need implementing below
   stream >> vlc::unbounded;
 
   UnsignedVLC major_version, minor_version, profile, level;
@@ -874,18 +873,13 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   if (custom_color_diff_format_flag) {
     UnsignedVLC color_diff_format;
     stream >> color_diff_format;
-    switch ((unsigned int)color_diff_format) {
-    case 0:
-      fmt.color_diff_format = CF444;
-      break;
-    case 1:
-      fmt.color_diff_format = CF422;
-      break;
-    case 2:
-      fmt.color_diff_format = CF420;
-      break;
-    default:
-      throw std::logic_error("DataUnitIO: Invalid Color Format");
+    try {
+      fmt.color_diff_format = (ColourFormat)(int)color_diff_format;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)color_diff_format;
+      ss << e.what();
+      throw std::logic_error(ss.str());
     }
   }
 
@@ -898,50 +892,54 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     fmt.source_sampling  = source_sampling;
   }
 
+  // To do: handle custom frame rate (index 0)
   Boolean custom_frame_rate_flag;
   stream >> custom_frame_rate_flag;
   fmt.custom_frame_rate_flag = custom_frame_rate_flag;
   if (custom_frame_rate_flag) {
     UnsignedVLC index;
     stream >> index;
-    switch(index) {
-    case 1: fmt.frame_rate = FR24000_1001; break;
-    case 2: fmt.frame_rate = FR24; break;
-    case 3: fmt.frame_rate = FR25; break;
-    case 4: fmt.frame_rate = FR30000_1001; break;
-    case 5: fmt.frame_rate = FR30; break;
-    case 6: fmt.frame_rate = FR50; break;
-    case 7: fmt.frame_rate = FR60000_1001; break;
-    case 8: fmt.frame_rate = FR60; break;
-    case 9: fmt.frame_rate = FR15000_1001; break;
-    case 10: fmt.frame_rate = FR25_2; break;
-    case 11: fmt.frame_rate = FR48; break;
-    case 12: fmt.frame_rate = FR48_1001; break;
-    case 13: fmt.frame_rate = FR96; break;
-    case 14: fmt.frame_rate = FR100; break;
-    case 15: fmt.frame_rate = FR120_1001; break;
-    case 16: fmt.frame_rate = FR120; break;
-    default:
-      {
-        std::stringstream ss;
-        ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)index;
-        throw std::logic_error(ss.str());
-      }
+
+    try {
+      fmt.frame_rate = (FrameRate)(int)index;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)index;
+      ss << e.what();
+      throw std::logic_error(ss.str());
     }
   }
 
+  // To do: handle custom pixel aspect ratio (index 0)
   Boolean custom_pixel_aspect_ratio_flag;
   stream >> custom_pixel_aspect_ratio_flag;
   if (custom_pixel_aspect_ratio_flag) {
-    throw std::logic_error("DataUnitIO: custom_pixel_aspect_ratio_flag set, shouldn't be");
+    UnsignedVLC index;
+    stream >> index;
+    try {
+      fmt.pixel_aspect_ratio = (PixelAspectRatio)(int)index;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Pixel Aspect Ratio on Input: " << (int)index;
+      ss << e.what();
+      throw std::logic_error(ss.str());
+    }
   }
 
+  // To do: handle restrictions on clean area (elsewhere?)
   Boolean custom_clean_area_flag;
   stream >> custom_clean_area_flag;
   if (custom_clean_area_flag) {
-    throw std::logic_error("DataUnitIO: custom_clean_area_flag set, shouldn't be");
+    UnsignedVLC clean_width, clean_height, left_offset, top_offset;
+    stream >> clean_width >> clean_height >> left_offset >> top_offset;
+    
+    fmt.clean_height = clean_height;
+    fmt.clean_width = clean_width;
+    fmt.left_offset = left_offset;
+    fmt.top_offset = top_offset;
   }
 
+  // To do: handle custom signal range (index 0)
   Boolean custom_signal_range_flag;
   stream >> custom_signal_range_flag;
   fmt.custom_signal_range_flag = custom_signal_range_flag;
@@ -953,38 +951,44 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
 
   Boolean custom_color_spec_flag;
   stream >> custom_color_spec_flag;
+  fmt.custom_color_spec_flag = custom_color_spec_flag;
   if (custom_color_spec_flag) {
     UnsignedVLC custom_color_spec_index;
     stream >> custom_color_spec_index;
-    if (custom_color_spec_index == 0) {
+    fmt.color_spec = custom_color_spec_index;
+    if ((ColorSpec)(int)custom_color_spec_index == CS_CUSTOM) {
       Boolean custom_color_primaries_flag, custom_color_matrix_flag, custom_transfer_function_flag;
+
       stream >> custom_color_primaries_flag;
+      fmt.custom_color_primaries_flag = custom_color_primaries_flag;
       if (custom_color_primaries_flag) {
         UnsignedVLC color_primaries;
         stream >> color_primaries;
+        fmt.color_primaries = color_primaries;
       }
 
       stream >> custom_color_matrix_flag;
+      fmt.custom_color_matrix_flag = custom_color_matrix_flag;
       if (custom_color_matrix_flag) {
         UnsignedVLC color_matrix;
         stream >> color_matrix;
-
-        if (color_matrix == 3) {
-          fmt.custom_color_diff_format_flag = true;
-          // To do: investigate RGB setting
-          fmt.color_diff_format = CF444;
-        }
+        fmt.color_matrix = color_matrix;
       }
 
       stream >> custom_transfer_function_flag;
+      fmt.custom_transfer_function_flag = custom_transfer_function_flag;
       if (custom_transfer_function_flag) {
         UnsignedVLC transfer_function;
         stream >> transfer_function;
+        fmt.transfer_function = transfer_function;
       }
     }
   }
 
-  
+  // Determine the picture coding mode from the source_sampling
+  // This means that progressive video is always encoded as frames
+  // and interlaced video is always encoded as fields
+  // To do: add a separate parameter for the picture coding mode (11.5)
   UnsignedVLC source_sampling;
   stream >> source_sampling;
   fmt.source_sampling = source_sampling;
