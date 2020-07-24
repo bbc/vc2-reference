@@ -379,23 +379,55 @@ SequenceHeader::SequenceHeader()
   , topFieldFirst (false)
   , bitdepth (0) {}
 
-SequenceHeader::SequenceHeader(Profile p, int h, int w, ColourFormat c, bool i, FrameRate f, bool tff, int bd, bool use_v3)
+SequenceHeader::SequenceHeader( Profile profile, 
+                                int height,
+                                int width,
+                                ColourFormat chromaFormat,
+                                bool interlace,
+                                FrameRate frameRate,
+                                bool topFieldFirst,
+                                int bitdepth,
+
+                                // Optional Args
+                                PixelAspectRatio pixelAspectRatio,
+                                int cleanWidth,
+                                int cleanHeight,
+                                int leftOffset,
+                                int topOffset,
+                                
+                                ColorSpec colorSpec,
+                                int colorPrimaries,
+                                int colorMatrix,
+                                int transferFunction,
+
+                                bool use_v3
+                              )
   : major_version(1)
   , minor_version(0)
-  , profile (p)
-  , width(w)
-  , height(h)
-  , chromaFormat(c)
-  , interlace (i)
-  , frameRate (f)
-  , topFieldFirst (tff)
-  , bitdepth (bd) {
-  if (p == PROFILE_HQ) {
+  , profile (profile)
+
+  , width(width)
+  , height(height)
+  , chromaFormat(chromaFormat)
+  , interlace (interlace)
+  , topFieldFirst (topFieldFirst)
+  , frameRate (frameRate)  
+  , bitdepth (bitdepth)
+  , pixelAspectRatio (pixelAspectRatio)
+  , cleanWidth (cleanWidth)
+  , cleanHeight (cleanHeight)
+  , leftOffset (leftOffset)
+  , topOffset (topOffset)
+  , colorSpec (colorSpec)
+  , colorPrimaries (colorPrimaries)
+  , colorMatrix (colorMatrix)
+  , transferFunction (transferFunction) {
+  if (profile == PROFILE_HQ) {
     major_version = 2;
   }
   if (use_v3 ||
-      f > MAX_V2_FRAMERATE ||
-      bd > 12) {
+      frameRate > MAX_V2_FRAMERATE ||
+      bitdepth > 12) {
     major_version = 3;
   }
 }

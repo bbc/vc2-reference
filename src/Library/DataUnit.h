@@ -105,7 +105,29 @@ enum Profile { PROFILE_UNKNOWN, PROFILE_LD, PROFILE_HQ };
 class SequenceHeader {
 public:
   SequenceHeader();
-  SequenceHeader(Profile profile, int height, int width, ColourFormat chromaFormat, bool interlace, FrameRate frameRate, bool topFieldFirst, int bitdepth, bool use_v3=false);
+  SequenceHeader( Profile profile, 
+                  int height,
+                  int width,
+                  ColourFormat chromaFormat,
+                  bool interlace,
+                  FrameRate frameRate,
+                  bool topFieldFirst,
+                  int bitdepth,
+
+                  // Optional Args
+                  PixelAspectRatio pixelAspectRatio = AR_UNSET,
+                  int cleanWidth = -1,
+                  int cleanHeight = -1,
+                  int leftOffset = -1,
+                  int topOffset = -1,
+                  
+                  ColorSpec colorSpec = CS_UNSET,
+                  int colorPrimaries = 0, // HDTV
+                  int colorMatrix = 0, // HDTV
+                  int transferFunction = 0, //TV Gamma
+                  
+                  bool use_v3 = false
+                );
 
   int major_version;
   int minor_version;
@@ -114,8 +136,21 @@ public:
   int height;
   ColourFormat chromaFormat;
   bool interlace;
-  FrameRate frameRate;
   bool topFieldFirst;
+  FrameRate frameRate;
+  int bitdepth;
+
+  PixelAspectRatio pixelAspectRatio;
+  int cleanWidth;
+  int cleanHeight;
+  int leftOffset;
+  int topOffset;
+  
+  ColorSpec colorSpec;
+  int colorPrimaries;
+  int colorMatrix;
+  int transferFunction;
+};
   int bitdepth;
 };
 
