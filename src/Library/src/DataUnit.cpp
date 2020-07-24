@@ -500,6 +500,32 @@ return ((fmt.width == base.width) &&
         ((fmt.colorSpec==-1)||(fmt.colorSpec == base.colorSpec)));
 }
 
+int CheckMatch(const SequenceHeader &fmt,
+                          const int index) {
+
+  const SequenceHeader base = getDefaultSourceParameters(index);
+
+  int non_matching_fields =
+                          (fmt.width != base.width) +
+                          (fmt.height != base.height) +
+                          (fmt.chromaFormat != base.chromaFormat) +
+                          (fmt.frameRate != base.frameRate) +
+                          (fmt.bitdepth != base.bitdepth)+
+                          (fmt.interlace != base.interlace) +
+                          // Optional
+                          ((fmt.pixelAspectRatio!=-1)&&(fmt.pixelAspectRatio != base.pixelAspectRatio)) +
+                          ((fmt.cleanWidth!=-1)&&(fmt.cleanWidth != base.cleanWidth))+
+                          ((fmt.cleanHeight!=-1)&&(fmt.cleanHeight != base.cleanHeight))+
+                          ((fmt.leftOffset!=-1)&&(fmt.leftOffset != base.leftOffset))+
+                          ((fmt.topOffset!=-1)&&(fmt.topOffset != base.topOffset))+
+                          ((fmt.colorSpec!=-1)&&(fmt.colorSpec != base.colorSpec));
+
+
+  bool valid = (fmt.topFieldFirst == base.topFieldFirst);
+
+  return valid ? non_matching_fields : -1;
+}
+
 video_format::video_format()
     : major_version(0)
     , minor_version(0)
@@ -643,9 +669,22 @@ video_format::video_format(const SequenceHeader &fmt)
     else if (PictureFormatMatches(fmt, 19)) { base_video_format = 19; level = 7; }
     else if (PictureFormatMatches(fmt, 20)) { base_video_format = 20; level = 7; }
   }
-
+  
   if (base_video_format == 0) {
-    if (fmt.interlace) {
+    level = 0 ;
+    int non_matching_fields;
+    int non_matching_fields_prev = 999;
+    for (int base_format = 1; base_format<=22; base_format++){
+      non_matching_fields = CheckMatch(fmt, base_format);
+      if (non_matching_fields == -1) continue;
+      if (non_matching_fields < non_matching_fields_prev){
+        base_video_format = base_format;
+        non_matching_fields_prev = non_matching_fields;
+      }
+    }
+
+    SequenceHeader base = getDefaultSourceParameters(base_video_format);
+
       custom_scan_format_flag = true;
       source_sampling = 1;
     }
