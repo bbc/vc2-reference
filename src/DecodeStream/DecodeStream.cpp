@@ -185,7 +185,7 @@ try { //Giant try block around all code to get error messages
   bool have_seq_hdr         = false;
   int height                = 0;
   int width                 = 0;
-  ColourFormat chromaFormat = UNKNOWN;
+  ColourFormat chromaFormat = CF_UNSET;
   int bytes                 = 0;
   int lumaDepth             = 0;
   int chromaDepth           = 0;

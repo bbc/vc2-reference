@@ -14,7 +14,7 @@
 
 #include "Arrays.h"
 
-enum ColourFormat {UNKNOWN, CF444, CF422, CF420, RGB}; //UNKOWN needed for PictureFormat default constructor
+enum ColourFormat {CF_UNSET=-1, CF444, CF422, CF420}; //CF_UNSET needed for PictureFormat default constructor
 
 std::ostream& operator<<(std::ostream& os, ColourFormat format);
 

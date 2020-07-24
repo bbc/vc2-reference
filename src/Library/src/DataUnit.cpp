@@ -602,19 +602,7 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
 
   ss << Boolean(fmt.custom_color_diff_format_flag);
   if (fmt.custom_color_diff_format_flag) {
-    switch (fmt.color_diff_format) {
-    case CF422:
-      ss << UnsignedVLC(1);
-      break;
-    case CF420:
-      ss << UnsignedVLC(2);
-      break;
-    case CF444:
-    case RGB:
-    default:
-      ss << UnsignedVLC(0);
-      break;
-    }
+      ss << UnsignedVLC((int)fmt.color_diff_format);
   }
 
   ss << Boolean(fmt.custom_scan_format_flag);
@@ -835,7 +823,8 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
 
         if (color_matrix == 3) {
           fmt.custom_color_diff_format_flag = true;
-          fmt.color_diff_format = RGB;
+          // To do: investigate RGB setting
+          fmt.color_diff_format = CF444;
         }
       }
 

@@ -94,7 +94,7 @@ class WrappedPicture {
     Slices slices;
 };
 
-enum FrameRate { FR0, FR24000_1001, FR24, FR25, FR30000_1001, FR30, FR50, FR60000_1001, FR60, FR15000_1001, FR25_2, FR48, FR48_1001, FR96, FR100, FR120_1001, FR120 };
+//enum ColourFormat {CF_UNSET=-1, CF444, CF422, CF420};
 const FrameRate MAX_V2_FRAMERATE = FR48;
 enum Profile { PROFILE_UNKNOWN, PROFILE_LD, PROFILE_HQ };
 

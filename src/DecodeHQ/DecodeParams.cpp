@@ -83,7 +83,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     ValueArg<int> cla_lumaDepth("l", "lumaDepth", "Bit depth for luma (defaults to bits per input sample), for RGB use -z", false, 0, "integer", cmd);
     ValueArg<int> cla_bitDepth("z", "bitDepth", "Common bit depth for all components (defaults to bits per input sample)", false, 0, "integer", cmd);
     ValueArg<int> cla_bytes("n", "bytes", "Number of bytes per sample in image file (default 2)", false, 2, "integer", cmd);
-    ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0 or RGB)", true, UNKNOWN, "string", cmd);
+    ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0)", true, CF_UNSET, "string", cmd);
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
     ValueArg<int> cla_sliceScalar("S", "scalar", "Slice Size Scalar (default 1)", false, 1, "integer", cmd);
@@ -135,7 +135,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     // Check parameter values
     if (height<1) throw invalid_argument("picture height must be > 0");
     if (width<1) throw invalid_argument("picture width must be > 0");
-    if (chromaFormat==UNKNOWN)
+    if (chromaFormat==CF_UNSET)
       throw std::invalid_argument("unknown colour format");
     if ( (1>bytes) | (bytes>4) )
       throw std::invalid_argument("bytes must be in range 1 to 4");

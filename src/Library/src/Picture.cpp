@@ -29,9 +29,6 @@ std::ostream& operator<<(std::ostream& os, ColourFormat format) {
     case CF420:
       s = "4:2:0";
       break;
-    case RGB:
-      s = "RGB";
-      break;
     default:
       s = "Unknown colour format!";
       break;
@@ -45,11 +42,7 @@ std::istream& operator>>(std::istream& strm, ColourFormat& format) {
         if (text == "4:4:4") format = CF444;
         else if (text == "4:2:2") format = CF422;
         else if (text == "4:2:0") format = CF420;
-        else if (text == "RGB") format = RGB;
-        else format = UNKNOWN;
-        // Alternatively
-        // else strm.setstate(std::ios_base::badbit||std::ios_base::failbit);
-        // else throw std::invalid_argument("invalid colour format");
+        else throw std::invalid_argument("invalid colour format");
         return strm;
 }
 
@@ -58,7 +51,6 @@ void PictureFormat::construct(int height, int width, ColourFormat cFormat) {
   yWidth = width;
   uvFormat = cFormat;
   switch (uvFormat) {
-    case RGB:
     case CF444: 
       uvHeight = yHeight;
       uvWidth = yWidth;
@@ -71,7 +63,7 @@ void PictureFormat::construct(int height, int width, ColourFormat cFormat) {
       uvHeight = yHeight/2;
       uvWidth = yWidth/2;
       break;
-    case UNKNOWN:
+    case CF_UNSET:
       uvHeight = 0;
       uvWidth = 0;
       break;
@@ -80,7 +72,7 @@ void PictureFormat::construct(int height, int width, ColourFormat cFormat) {
   }
 }
 
-PictureFormat::PictureFormat() {construct(0, 0, UNKNOWN);} // Used for arrays of Pictures
+PictureFormat::PictureFormat() {construct(0, 0, CF_UNSET);} // Used for arrays of Pictures
 
 PictureFormat::PictureFormat(int height, int width, ColourFormat cFormat) {
   construct(height, width, cFormat);
@@ -131,20 +123,20 @@ void PictureFormat::guessFormat(int imageSamples, ColourFormat cFormat) {
     construct(frameResolutions[r][0], frameResolutions[r][1], cFormat);
     if (samples()==imageSamples) return;
   }
-  construct (0,0,UNKNOWN); //No matching format found
+  construct (0,0,CF_UNSET); //No matching format found
 }
 
 PictureFormat::PictureFormat(int height, int width, ColourFormat cFormat, int imageSamples) {
   if (height && width && cFormat) { //frame format explicity defined
     construct(height, width, cFormat);
-    if (samples()!=imageSamples) construct(0,0,UNKNOWN);
+    if (samples()!=imageSamples) construct(0,0,CF_UNSET);
     return;
   }
   if (height && width) { //colour format unknown (guess it)
     construct(height, width, CF444);
     if (samples()!=imageSamples) construct(height, width, CF422);
     if (samples()!=imageSamples) construct(height, width, CF420);
-    if (samples()!=imageSamples) construct(0,0,UNKNOWN);
+    if (samples()!=imageSamples) construct(0,0,CF_UNSET);
     return;
   }
   if (cFormat) { //only colour format available (no height or no width)
