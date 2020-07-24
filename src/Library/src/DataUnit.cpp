@@ -784,86 +784,59 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
     ss << UnsignedVLC(fmt.source_sampling);
   }
 
+  // To do: handle custom frame rate (index 0)
   ss << Boolean(fmt.custom_frame_rate_flag);
   if (fmt.custom_frame_rate_flag) {
-    switch (fmt.frame_rate) {
-    case FR24000_1001:
-      ss << UnsignedVLC(1);
-      break;
-    case FR24:
-      ss << UnsignedVLC(2);
-      break;
-    case FR25:
-      ss << UnsignedVLC(3);
-      break;
-    case FR30000_1001:
-      ss << UnsignedVLC(4);
-      break;
-    case FR30:
-      ss << UnsignedVLC(5);
-      break;
-    case FR50:
-      ss << UnsignedVLC(6);
-      break;
-    case FR60000_1001:
-      ss << UnsignedVLC(7);
-      break;
-    case FR60:
-      ss << UnsignedVLC(8);
-      break;
-    case FR15000_1001:
-      ss << UnsignedVLC(9);
-      break;
-    case FR25_2:
-      ss << UnsignedVLC(10);
-      break;
-    case FR48:
-      ss << UnsignedVLC(11);
-      break;
-    case FR48_1001:
-      ss << UnsignedVLC(12);
-      break;
-    case FR96:
-      ss << UnsignedVLC(13);
-      break;
-    case FR100:
-      ss << UnsignedVLC(14);
-      break;
-    case FR120_1001:
-      ss << UnsignedVLC(15);
-      break;
-    case FR120:
-      ss << UnsignedVLC(16);
-      break;
-    default:
-      {
-        std::stringstream ss;
-        ss << "DataUnitIO: Invalid Frame Rate on output: " << fmt.frame_rate;
-        throw std::logic_error(ss.str());
+      ss << UnsignedVLC((int) fmt.frame_rate);
+  }
+
+  // To do: handle custom pixel aspect ratio (index 0)
+  ss << Boolean(fmt.custom_pixel_aspect_ratio_flag);
+  if (fmt.custom_pixel_aspect_ratio_flag){
+      ss << UnsignedVLC((int) fmt.pixel_aspect_ratio);
+  }
+
+  // To do: handle restrictions on clean area (elsewhere)
+  ss << Boolean(fmt.custom_clean_area_flag);
+  if (fmt.custom_clean_area_flag){
+    ss << UnsignedVLC(fmt.clean_width);
+    ss << UnsignedVLC(fmt.clean_height);
+    ss << UnsignedVLC(fmt.left_offset);
+    ss << UnsignedVLC(fmt.top_offset);
+  }
+
+  // To do: handle custom signal range (index 0)
+  // To do: replace bitdepth with signal range num
+  ss << Boolean(fmt.custom_signal_range_flag);
+  if (fmt.custom_signal_range_flag) {
+    // bitdepth here has been replaced by the index 
+    // (in copy_video_fmt_to_hdr)
+    ss << UnsignedVLC(fmt.bitdepth);  
+  }
+
+  ss << Boolean(fmt.custom_color_spec_flag);
+  if (fmt.custom_color_spec_flag) {
+    ss << UnsignedVLC((int)fmt.color_spec);
+    if (fmt.color_spec == CS_CUSTOM){
+      ss << Boolean(fmt.custom_color_primaries_flag);
+      if (fmt.custom_color_primaries_flag) {
+        ss << UnsignedVLC(fmt.color_primaries);
+      }
+      ss << Boolean(fmt.custom_color_matrix_flag);
+      if (fmt.custom_color_matrix_flag) {
+        ss << UnsignedVLC(fmt.color_matrix);
+      }
+      ss << Boolean(fmt.custom_transfer_function_flag);
+      if (fmt.custom_transfer_function_flag) {
+        ss << UnsignedVLC(fmt.transfer_function);
       }
     }
   }
-
-  ss << Boolean(false); // custom_pixel_aspect_ratio_flag
-
-  ss << Boolean(false); // custom_clean_area_flag
-
-  ss << Boolean(fmt.custom_signal_range_flag);
-  if (fmt.custom_signal_range_flag) {
-    ss << UnsignedVLC(fmt.bitdepth);
-  }
-
-  if (fmt.custom_color_diff_format_flag && fmt.color_diff_format == RGB) {
-    ss << Boolean(true);
-    ss << UnsignedVLC(0); // Custom
-    ss << Boolean(false); // No custom primaries
-    ss << Boolean(true) << UnsignedVLC(3); // RGB Matrix
-    ss << Boolean(false); // No custom gamma
-  } else 
-    ss << Boolean(false); // custom_color_spec_flag
-
-  ss << UnsignedVLC(fmt.picture_coding_mode);
-
+  // Use the source sampling to determine the picture coding mode
+  // This means that progressive video is always encoded as frames
+  // and interlaced video is always encoded as fields
+  // To do: add a separate parameter for the picture coding mode (11.5)
+  ss << UnsignedVLC(fmt.source_sampling);
   ss << vlc::align;
 
   return ss;
