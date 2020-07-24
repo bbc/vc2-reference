@@ -843,6 +843,7 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
 }
 
 std::istream& operator >> (std::istream& stream, video_format& fmt) {
+  // To do: Custom parameters need implementing below
   stream >> vlc::unbounded;
 
   UnsignedVLC major_version, minor_version, profile, level;
@@ -984,9 +985,9 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   }
 
   
-  UnsignedVLC picture_coding_mode;
-  stream >> picture_coding_mode;
-  fmt.picture_coding_mode = picture_coding_mode;
+  UnsignedVLC source_sampling;
+  stream >> source_sampling;
+  fmt.source_sampling = source_sampling;
 
   stream >> vlc::align;
 
@@ -1138,15 +1139,15 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
 
   SequenceHeader other = getDefaultSourceParameters(fmt.base_video_format);
 
-  hdr->profile       = other->profile;
-  hdr->width         = other->width;
-  hdr->height        = other->height;
-  hdr->chromaFormat  = other->chromaFormat;
-  hdr->interlace     = other->interlace;
-  hdr->frameRate     = other->frameRate;
-  hdr->topFieldFirst = other->topFieldFirst;
-  hdr->bitdepth      = other->bitdepth;
-  delete other;
+  hdr->profile       = other.profile;
+  hdr->width         = other.width;
+  hdr->height        = other.height;
+  hdr->chromaFormat  = other.chromaFormat;
+  hdr->interlace     = other.interlace;
+  hdr->frameRate     = other.frameRate;
+  hdr->topFieldFirst = other.topFieldFirst;
+  hdr->bitdepth      = other.bitdepth;
+  // To Do: Add remaining parameters here
 
   hdr->major_version = fmt.major_version;
   hdr->minor_version = fmt.minor_version;
