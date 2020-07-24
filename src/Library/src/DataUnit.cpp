@@ -685,23 +685,24 @@ video_format::video_format(const SequenceHeader &fmt)
 
     SequenceHeader base = getDefaultSourceParameters(base_video_format);
 
+    if (fmt.interlace != base.interlace) {
       custom_scan_format_flag = true;
-      source_sampling = 1;
+      source_sampling = fmt.interlace;
     }
-    if (fmt.width != 640 || fmt.height != 480) {
+    if (fmt.width != base.width || fmt.height != base.height) {
       custom_dimensions_flag = true;
       frame_width  = fmt.width;
       frame_height = fmt.height;
     }
-    if (fmt.chromaFormat != CF420) {
+    if (fmt.chromaFormat != base.chromaFormat) {
       custom_color_diff_format_flag = true;
       color_diff_format = fmt.chromaFormat;
     }
-    if (fmt.frameRate != FR24000_1001) {
+    if (fmt.frameRate != base.frameRate) {
       custom_frame_rate_flag = true;
       frame_rate = fmt.frameRate;
     }
-    if (fmt.bitdepth != 8) {
+    if (fmt.bitdepth != base.bitdepth) {
       custom_signal_range_flag = true;
       switch (fmt.bitdepth) {
       case  8: bitdepth = 1; break;
@@ -712,12 +713,47 @@ video_format::video_format(const SequenceHeader &fmt)
         throw std::logic_error("DataUnitIO: invalid bit depth");
       }
     }
-  }
+    if ((fmt.pixelAspectRatio != AR_UNSET)&&(fmt.pixelAspectRatio != base.pixelAspectRatio)) {
+      custom_pixel_aspect_ratio_flag = true;
+      pixel_aspect_ratio = fmt.pixelAspectRatio;
+    }
+    if (
+       (fmt.cleanHeight != -1 ||
+        fmt.cleanWidth  != -1 ||
+        fmt.leftOffset  != -1 ||
+        fmt.topOffset   != -1 )
+        &&
+       (fmt.cleanHeight != base.cleanHeight ||
+        fmt.cleanWidth  != base.cleanWidth  ||
+        fmt.leftOffset  != base.leftOffset  ||
+        fmt.topOffset   != base.topOffset)) {
+      custom_clean_area_flag = true;
+      clean_height = fmt.cleanHeight;
+      clean_width = fmt.cleanWidth;
+      left_offset = fmt.leftOffset;
+      top_offset = fmt.topOffset;
+    }
+    if ((fmt.colorSpec != CS_UNSET)&&(fmt.colorSpec != base.colorSpec)) {
+      custom_color_spec_flag = true;      
+      color_spec = fmt.colorSpec;
+    }
 
-  if (fmt.interlace)
-    picture_coding_mode = 1;
-  else
-    picture_coding_mode = 0;
+    if (fmt.colorSpec == CS_CUSTOM){
+      if (fmt.colorPrimaries != base.colorPrimaries) {
+        custom_color_primaries_flag = true;
+        color_primaries = fmt.colorPrimaries;
+      }
+      if (fmt.colorMatrix != base.colorMatrix) {
+        custom_color_matrix_flag = true;
+        color_matrix = fmt.colorMatrix;  
+      }
+      if (fmt.transferFunction != base.transferFunction) {
+        custom_transfer_function_flag = true;
+        transfer_function = fmt.transferFunction;  
+      }
+    }
+    
+  }
 }
 
 std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
