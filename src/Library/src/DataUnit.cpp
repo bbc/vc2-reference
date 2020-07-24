@@ -432,6 +432,35 @@ SequenceHeader::SequenceHeader( Profile profile,
   }
 }
 
+SequenceHeader getDefaultSourceParameters(const int base_video_format_index){
+  switch (base_video_format_index) {
+    // To Do: refactor bitdepth to be the index
+    case  0: return  SequenceHeader(PROFILE_UNKNOWN, 480,640,  CF420, false, FR24000_1001,  false,  8, AR1_1,   640,480,0,0,   CS_CUSTOM   ); break;
+    case  1: return  SequenceHeader(PROFILE_UNKNOWN, 120,176,  CF420, false, FR15000_1001,  false,  8, AR10_11, 176,120,0,0,   CS_SDTV_525 ); break;
+    case  2: return  SequenceHeader(PROFILE_UNKNOWN, 144,176,  CF420, false, FR25_2,        true,   8, AR12_11, 176,144,0,0,   CS_SDTV_625 ); break;
+    case  3: return  SequenceHeader(PROFILE_UNKNOWN, 240,352,  CF420, false, FR15000_1001,  false,  8, AR10_11, 352,240,0,0,   CS_SDTV_525 ); break;
+    case  4: return  SequenceHeader(PROFILE_UNKNOWN, 288,352,  CF420, false, FR25_2,        true,   8, AR12_11, 352,288,0,0,   CS_SDTV_625 ); break;
+    case  5: return  SequenceHeader(PROFILE_UNKNOWN, 480,704,  CF420, false, FR15000_1001,  false,  8, AR10_11, 704,480,0,0,   CS_SDTV_525 ); break;
+    case  6: return  SequenceHeader(PROFILE_UNKNOWN, 576,704,  CF420, false, FR25_2,        true,   8, AR12_11, 704,576,0,0,   CS_SDTV_625 ); break;
+    case  7: return  SequenceHeader(PROFILE_UNKNOWN, 480,720,  CF422, true,  FR30000_1001,  false, 10, AR10_11, 704,480,8,0,   CS_SDTV_525 ); break;
+    case  8: return  SequenceHeader(PROFILE_UNKNOWN, 576,720,  CF422, true,  FR25,          true,  10, AR12_11, 704,576,8,0,   CS_SDTV_625 ); break;
+    case  9: return  SequenceHeader(PROFILE_UNKNOWN, 720,1280, CF422, false, FR60000_1001,  true,  10, AR1_1,   1280,720,0,0,  CS_HDTV     ); break;
+    case 10: return  SequenceHeader(PROFILE_UNKNOWN, 720,1280, CF422, false, FR50,          true,  10, AR1_1,   1280,720,0,0,  CS_HDTV     ); break;
+    case 11: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, true,  FR30000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 12: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, true,  FR25,         true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 13: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR60000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 14: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR50,         true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 15: return  SequenceHeader(PROFILE_UNKNOWN, 1080,2048, CF444, false, FR24,         true,  12, AR1_1,   2048,1080,0,0, CS_D_CINEMA ); break;
+    case 16: return  SequenceHeader(PROFILE_UNKNOWN, 2160,4096, CF444, false, FR24,         true,  12, AR1_1,   4096,2160,0,0, CS_D_CINEMA ); break;
+    case 17: return  SequenceHeader(PROFILE_UNKNOWN, 2160,3840, CF422, false, FR60000_1001, true,  10, AR1_1,   3840,2160,0,0, CS_UHDTV    ); break;
+    case 18: return  SequenceHeader(PROFILE_UNKNOWN, 2160,3840, CF422, false, FR50,         true,  10, AR1_1,   3840,2160,0,0, CS_UHDTV    ); break;
+    case 19: return  SequenceHeader(PROFILE_UNKNOWN, 4320,7680, CF422, false, FR60000_1001, true,  10, AR1_1,   7680,4320,0,0, CS_UHDTV    ); break;
+    case 20: return  SequenceHeader(PROFILE_UNKNOWN, 4320,7680, CF422, false, FR50,         true,  10, AR1_1,   7680,4320,0,0, CS_UHDTV    ); break;
+    case 21: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR24000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 22: return  SequenceHeader(PROFILE_UNKNOWN, 486,720,  CF422, true,  FR30000_1001, false,  10, AR10_11, 720,486,0,0,   CS_HDTV     ); break; 
+  default:
+    throw std::logic_error("DataUnitIO: unknown base video format");
+  }
 }
 
 
@@ -1036,35 +1065,8 @@ std::ostream& operator << (std::ostream& stream, const FrameRate& r) {
 }
 
 void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
-  SequenceHeader *other;
 
-  switch (fmt.base_video_format) {
-  case  0: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  640,  CF420, false, FR24000_1001, false,  8); break;
-  case  1: other = new SequenceHeader(PROFILE_UNKNOWN, 120,  176,  CF420, false, FR15000_1001, false,  8); break;
-  case  2: other = new SequenceHeader(PROFILE_UNKNOWN, 144,  176,  CF420, false, FR25_2,       true,   8); break;
-  case  3: other = new SequenceHeader(PROFILE_UNKNOWN, 240,  352,  CF420, false, FR15000_1001, false,  8); break;
-  case  4: other = new SequenceHeader(PROFILE_UNKNOWN, 288,  352,  CF420, false, FR25_2,       true,   8); break;
-  case  5: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  704,  CF420, false, FR15000_1001, false,  8); break;
-  case  6: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  704,  CF420, false, FR25_2,       true,   8); break;
-  case  7: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  720,  CF422, true,  FR30000_1001, false, 10); break;
-  case  8: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  720,  CF422, true,  FR25,         true,  10); break;
-  case  9: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR60000_1001, true,  10); break;
-  case 10: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR50,         true,  10); break;
-  case 11: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR30000_1001, true,  10); break;
-  case 12: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR25,         true,  10); break;
-  case 13: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR60000_1001, true,  10); break;
-  case 14: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR50,         true,  10); break;
-  case 15: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 2048, CF444, false, FR24,         true,  12); break;
-  case 16: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 4096, CF444, false, FR24,         true,  12); break;
-  case 17: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR60000_1001, true,  10); break;
-  case 18: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR50,         true,  10); break;
-  case 19: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR60000_1001, true,  10); break;
-  case 20: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR50,         true,  10); break;
-  case 21: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR24000_1001, true,  10); break;
-  case 22: other = new SequenceHeader(PROFILE_UNKNOWN, 486,  720,  CF422, true,  FR30000_1001, false, 10); break;
-  default:
-    throw std::logic_error("DataUnitIO: unknown base video format");
-  }
+  SequenceHeader other = getDefaultSourceParameters(fmt.base_video_format);
 
   hdr->profile       = other->profile;
   hdr->width         = other->width;

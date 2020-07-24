@@ -151,6 +151,9 @@ public:
   int colorMatrix;
   int transferFunction;
 };
+
+SequenceHeader getDefaultSourceParameters(const int base_video_format_index);
+
 struct video_format {
 
   video_format();

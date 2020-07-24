@@ -90,6 +90,16 @@ TEST(HeaderParseTest, ThrowErrorIfTypeIncorrect){
     }
 }
 
+TEST(BaseVideoTest, CheckAccess){
+SequenceHeader test = getDefaultSourceParameters(4);
+
+EXPECT_EQ(test.width, 352);
+EXPECT_EQ(test.height,288);
+EXPECT_EQ(test.chromaFormat, CF420);
+EXPECT_EQ(test.frameRate, FR25_2);
+EXPECT_EQ(test.bitdepth, 8);
+    
+}
 
 
 // Run all tests
