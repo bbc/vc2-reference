@@ -1141,17 +1141,27 @@ std::ostream& operator << (std::ostream& stream, const FrameRate& r) {
 
 void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
 
-  SequenceHeader other = getDefaultSourceParameters(fmt.base_video_format);
+  SequenceHeader base = getDefaultSourceParameters(fmt.base_video_format);
 
-  hdr->profile       = other.profile;
-  hdr->width         = other.width;
-  hdr->height        = other.height;
-  hdr->chromaFormat  = other.chromaFormat;
-  hdr->interlace     = other.interlace;
-  hdr->frameRate     = other.frameRate;
-  hdr->topFieldFirst = other.topFieldFirst;
-  hdr->bitdepth      = other.bitdepth;
-  // To Do: Add remaining parameters here
+  hdr->profile       = base.profile;
+  hdr->width         = base.width;
+  hdr->height        = base.height;
+  hdr->chromaFormat  = base.chromaFormat;
+  hdr->interlace     = base.interlace;
+  hdr->frameRate     = base.frameRate;
+  hdr->topFieldFirst = base.topFieldFirst;
+  hdr->bitdepth      = base.bitdepth;
+  // Optional Args
+  hdr->pixelAspectRatio = base.pixelAspectRatio;
+  hdr->cleanWidth       = base.cleanWidth;
+  hdr->cleanHeight      = base.cleanHeight;
+  hdr->leftOffset       = base.leftOffset;
+  hdr->topOffset        = base.topOffset;
+  
+  hdr->colorSpec        = base.colorSpec;
+  hdr->colorPrimaries   = base.colorPrimaries;
+  hdr->colorMatrix      = base.colorMatrix;
+  hdr->transferFunction = base.transferFunction;
 
   hdr->major_version = fmt.major_version;
   hdr->minor_version = fmt.minor_version;
@@ -1174,6 +1184,22 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
     else
       hdr->interlace = true;
   }
+  if (fmt.custom_frame_rate_flag) {
+    hdr->frameRate = fmt.frame_rate;
+
+    if (fmt.frame_rate > MAX_V2_FRAMERATE)
+      if (hdr->major_version < 3)
+        hdr->major_version = 3;
+  }
+  if (fmt.custom_pixel_aspect_ratio_flag){
+    hdr->pixelAspectRatio = (PixelAspectRatio)fmt.pixel_aspect_ratio;
+  }
+  if (fmt.custom_clean_area_flag){
+    hdr->cleanWidth   = fmt.clean_width;
+    hdr->cleanHeight  = fmt.clean_height;
+    hdr->leftOffset   = fmt.left_offset;
+    hdr->topOffset    = fmt.top_offset;
+  }
   if (fmt.custom_signal_range_flag) {
     switch (fmt.bitdepth) {
     case 1: hdr->bitdepth =  8; break;
@@ -1191,12 +1217,19 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
         hdr->major_version = 3;
     }
   }
-  if (fmt.custom_frame_rate_flag) {
-    hdr->frameRate = fmt.frame_rate;
-
-    if (fmt.frame_rate > MAX_V2_FRAMERATE)
-      if (hdr->major_version < 3)
-        hdr->major_version = 3;
+  if (fmt.custom_color_spec_flag){
+    hdr->colorSpec   = (ColorSpec)fmt.color_spec;
+    if ((ColorSpec)fmt.color_spec == CS_CUSTOM){
+      if (fmt.custom_color_primaries_flag){
+        hdr->colorPrimaries = fmt.color_primaries;
+      }
+      if (fmt.custom_color_matrix_flag){
+        hdr->colorMatrix = fmt.color_matrix;
+      }
+      if (fmt.custom_transfer_function_flag){
+        hdr->transferFunction = fmt.transfer_function;
+      }
+    }
   }
 
   //  return hdr;
