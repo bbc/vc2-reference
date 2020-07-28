@@ -1,12 +1,12 @@
 /*********************************************************************/
 /* Picture.cpp                                                       */
-/* Author: Tim Borer                                                 */
-/* This version 7th June 2012                                        */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines stuff related to pictures.                                */
 /* Pictures, in this context, are three components (YUV/RGB), plus   */
 /* some metadata specifying the size and colour subsampling (if any) */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include <iostream>

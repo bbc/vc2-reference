@@ -1,6 +1,6 @@
 /*********************************************************************/
 /* EncodeParams.cpp                                                  */
-/* Author: Tim Borer and Galen Reich,  BBC Research & Development    */
+/* Author: Tim Borer and Galen Reich,  BBC Research and Development  */
 /* This version July 2020                                            */
 /*                                                                   */
 /* Defines getting program parameters from command line.             */

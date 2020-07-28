@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* DataUnit.cpp                                                      */
-/* Author: James Weaver                                              */
-/* This version 17th June 2015                                       */
+/* Author: James Weaver and Galen Reich                              */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines stuff relating to data units                              */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include <iostream> //For cin, cout, cerr

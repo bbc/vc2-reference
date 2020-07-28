@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* Picture.h                                                         */
-/* Author: Tim Borer                                                 */
-/* This version 4th September 2012                                   */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Declares stuff related to colour pictures.                        */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #ifndef PICTURE_3MAY11

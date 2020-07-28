@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* DecodeParams.cpp                                                  */
-/* Author: Tim Borer                                                 */
-/* This version 20th September 2013                                  */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines getting program parameters from command line.             */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include "DecodeParams.h"

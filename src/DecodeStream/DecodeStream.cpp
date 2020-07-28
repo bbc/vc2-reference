@@ -1,13 +1,13 @@
 /***********************************************************************/
 /* DecodeStream.cpp                                                    */
-/* Author: James Weaver                                                */
-/* This version 18th June 2015                                         */
+/* Author: James Weaver and Galen Reich                                */
+/* This version July 2020                                              */
 /*                                                                     */
 /* Reads compressed stream in                                          */
 /* Decompresses image using VC-2                                       */
 /* Writes image data out to a planar file.                             */
 /* It is not necessarily complet nor korrect.                          */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file     */
 /***********************************************************************/
 
 const char version[] = __DATE__ " @ " __TIME__ ;
