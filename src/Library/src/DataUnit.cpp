@@ -701,10 +701,21 @@ video_format::video_format(const SequenceHeader &fmt)
     if (fmt.frameRate != base.frameRate) {
       custom_frame_rate_flag = true;
       frame_rate = fmt.frameRate;
+      if (frame_rate == FR0){
+        frame_rate_numer = fmt.frameRateNumer;
+        frame_rate_denom = fmt.frameRateDenom;
+      }
     }
     if (fmt.bitdepth != base.bitdepth) {
       custom_signal_range_flag = true;
       switch (fmt.bitdepth) {
+      case  0: 
+        bitdepth = 0;
+        luma_excursion = fmt.lumaExcursion;
+        luma_offset = fmt.lumaOffset;
+        color_diff_excursion = fmt.colorDiffExcursion;
+        color_diff_offset = fmt.colorDiffOffset;
+        break;
       case  8: bitdepth = 1; break;
       case 10: bitdepth = 3; break;
       case 12: bitdepth = 4; break;
@@ -716,6 +727,10 @@ video_format::video_format(const SequenceHeader &fmt)
     if ((fmt.pixelAspectRatio != AR_UNSET)&&(fmt.pixelAspectRatio != base.pixelAspectRatio)) {
       custom_pixel_aspect_ratio_flag = true;
       pixel_aspect_ratio = fmt.pixelAspectRatio;
+      if(pixel_aspect_ratio == 0){
+        pixel_aspect_ratio_numer = fmt.pixelAspectRatioNumer;
+        pixel_aspect_ratio_denom = fmt.pixelAspectRatioDenom;
+      }
     }
     if (
        (fmt.cleanHeight != -1 ||
@@ -784,16 +799,22 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
     ss << UnsignedVLC(fmt.source_sampling);
   }
 
-  // To do: handle custom frame rate (index 0)
   ss << Boolean(fmt.custom_frame_rate_flag);
   if (fmt.custom_frame_rate_flag) {
       ss << UnsignedVLC((int) fmt.frame_rate);
+      if (fmt.frame_rate == FR0){
+        ss << UnsignedVLC(fmt.frame_rate_numer);
+        ss << UnsignedVLC(fmt.frame_rate_denom);
+      }
   }
 
-  // To do: handle custom pixel aspect ratio (index 0)
   ss << Boolean(fmt.custom_pixel_aspect_ratio_flag);
   if (fmt.custom_pixel_aspect_ratio_flag){
       ss << UnsignedVLC((int) fmt.pixel_aspect_ratio);
+      if (fmt.pixel_aspect_ratio == AR0){
+        ss << UnsignedVLC(fmt.pixel_aspect_ratio_numer);
+        ss << UnsignedVLC(fmt.pixel_aspect_ratio_denom);
+      }
   }
 
   // To do: handle restrictions on clean area (elsewhere)
@@ -805,13 +826,18 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
     ss << UnsignedVLC(fmt.top_offset);
   }
 
-  // To do: handle custom signal range (index 0)
   // To do: replace bitdepth with signal range num
   ss << Boolean(fmt.custom_signal_range_flag);
   if (fmt.custom_signal_range_flag) {
     // bitdepth here has been replaced by the index 
     // (in copy_video_fmt_to_hdr)
     ss << UnsignedVLC(fmt.bitdepth);  
+    if (fmt.bitdepth == 0){
+      ss << UnsignedVLC(fmt.luma_offset);
+      ss << UnsignedVLC(fmt.luma_excursion);
+      ss << UnsignedVLC(fmt.color_diff_offset);
+      ss << UnsignedVLC(fmt.color_diff_excursion);
+    }
   }
 
   ss << Boolean(fmt.custom_color_spec_flag);
@@ -892,7 +918,6 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     fmt.source_sampling  = source_sampling;
   }
 
-  // To do: handle custom frame rate (index 0)
   Boolean custom_frame_rate_flag;
   stream >> custom_frame_rate_flag;
   fmt.custom_frame_rate_flag = custom_frame_rate_flag;
@@ -908,9 +933,17 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
       ss << e.what();
       throw std::logic_error(ss.str());
     }
+
+    if (fmt.frame_rate == FR0){
+      UnsignedVLC frame_rate_numer;
+      UnsignedVLC frame_rate_denom;
+      stream >> frame_rate_numer;
+      stream >> frame_rate_denom;
+      fmt.frame_rate_numer = frame_rate_numer;
+      fmt.frame_rate_denom = frame_rate_denom;
+    }
   }
 
-  // To do: handle custom pixel aspect ratio (index 0)
   Boolean custom_pixel_aspect_ratio_flag;
   stream >> custom_pixel_aspect_ratio_flag;
   if (custom_pixel_aspect_ratio_flag) {
@@ -923,6 +956,14 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
       ss << "DataUnitIO: Invalid Pixel Aspect Ratio on Input: " << (int)index;
       ss << e.what();
       throw std::logic_error(ss.str());
+    }
+    if (fmt.pixel_aspect_ratio == AR0){
+      UnsignedVLC pixel_aspect_ratio_numer;
+      UnsignedVLC pixel_aspect_ratio_denom;
+      stream >> pixel_aspect_ratio_numer;
+      stream >> pixel_aspect_ratio_denom;
+      fmt.pixel_aspect_ratio_numer = pixel_aspect_ratio_numer;
+      fmt.pixel_aspect_ratio_denom = pixel_aspect_ratio_denom;
     }
   }
 
@@ -939,7 +980,6 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     fmt.top_offset = top_offset;
   }
 
-  // To do: handle custom signal range (index 0)
   Boolean custom_signal_range_flag;
   stream >> custom_signal_range_flag;
   fmt.custom_signal_range_flag = custom_signal_range_flag;
@@ -947,6 +987,15 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     UnsignedVLC bitdepth;
     stream >> bitdepth;
     fmt.bitdepth = bitdepth;
+    if (fmt.bitdepth == 0){
+      UnsignedVLC luma_offset, luma_excursion, color_diff_offset, color_diff_excursion;
+      stream >> luma_offset >> luma_excursion >> color_diff_offset >> color_diff_excursion;
+
+      fmt.luma_offset = luma_offset;
+      fmt.luma_excursion = luma_excursion;
+      fmt.color_diff_offset = color_diff_offset;
+      fmt.color_diff_excursion = color_diff_excursion;
+    }
   }
 
   Boolean custom_color_spec_flag;
@@ -1186,6 +1235,10 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
   }
   if (fmt.custom_frame_rate_flag) {
     hdr->frameRate = fmt.frame_rate;
+    if (fmt.frame_rate == FR0){
+      hdr->frameRateNumer = fmt.frame_rate_numer;
+      hdr->frameRateDenom = fmt.frame_rate_denom;
+    }
 
     if (fmt.frame_rate > MAX_V2_FRAMERATE)
       if (hdr->major_version < 3)
@@ -1193,6 +1246,10 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
   }
   if (fmt.custom_pixel_aspect_ratio_flag){
     hdr->pixelAspectRatio = (PixelAspectRatio)fmt.pixel_aspect_ratio;
+    if ((PixelAspectRatio)fmt.pixel_aspect_ratio == AR0){
+      hdr->pixelAspectRatioNumer = fmt.pixel_aspect_ratio_numer;
+      hdr->pixelAspectRatioDenom = fmt.pixel_aspect_ratio_denom;
+    }
   }
   if (fmt.custom_clean_area_flag){
     hdr->cleanWidth   = fmt.clean_width;
@@ -1202,6 +1259,7 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
   }
   if (fmt.custom_signal_range_flag) {
     switch (fmt.bitdepth) {
+    case 0: hdr->bitdepth =  0; break;
     case 1: hdr->bitdepth =  8; break;
     case 2: hdr->bitdepth =  8; break;
     case 3: hdr->bitdepth = 10; break;
@@ -1210,6 +1268,12 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
     case 6: hdr->bitdepth = 12; break;
     case 7: hdr->bitdepth = 16; break;
     case 8: hdr->bitdepth = 16; break;
+    }
+    if (fmt.bitdepth == 0){
+      hdr->lumaOffset = fmt.luma_offset;
+      hdr->lumaExcursion = fmt.luma_excursion;
+      hdr->colorDiffOffset = fmt.color_diff_offset;
+      hdr->colorDiffExcursion = fmt.color_diff_excursion;
     }
 
     if (fmt.bitdepth > 4) {

@@ -234,7 +234,27 @@ try { //Giant try block around all code to get error messages
           clog << "width         = " << seq_hdr.width << endl;
           clog << "chroma format = " << seq_hdr.chromaFormat << endl;
           clog << "interlaced    = " << std::boolalpha << seq_hdr.interlace << endl;
-          clog << "frame rate    = " << seq_hdr.frameRate << endl;
+          if(seq_hdr.frameRate!=0){
+            clog << "frame rate    = " << seq_hdr.frameRate << endl;
+          } else {
+            clog << "custom frame rate: " 
+                 << seq_hdr.frameRateNumer << "/"
+                 << seq_hdr.frameRateDenom << endl;
+          } 
+          if(seq_hdr.pixelAspectRatio!=AR0){
+            clog << "pixel aspect ratio index = " << (int)seq_hdr.pixelAspectRatio << endl;
+          } else {
+            clog << "custom pixel aspect ratio: " 
+                 << seq_hdr.pixelAspectRatioNumer << "/"
+                 << seq_hdr.pixelAspectRatioDenom << endl;
+          } 
+          if(seq_hdr.bitdepth!=0){
+            clog << "bitdepth index = " << seq_hdr.bitdepth << endl;
+          } else {
+            clog << "custom bitdepth info: " << endl;
+            clog <<"\tluma (excursion, offset): "<< seq_hdr.lumaExcursion<<", "<<seq_hdr.lumaOffset<<endl;
+            clog <<"\tcolor difference (excursion, offset): "<< seq_hdr.colorDiffExcursion<<", "<<seq_hdr.colorDiffOffset<<endl;
+          } 
         }
 
         height        = seq_hdr.height;

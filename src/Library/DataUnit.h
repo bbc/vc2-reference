@@ -138,9 +138,17 @@ public:
   bool interlace;
   bool topFieldFirst;
   FrameRate frameRate;
+  unsigned int frameRateNumer;
+  unsigned int frameRateDenom;
   int bitdepth;
+  unsigned int lumaExcursion;
+  unsigned int lumaOffset;
+  unsigned int colorDiffExcursion;
+  unsigned int colorDiffOffset;
 
   PixelAspectRatio pixelAspectRatio;
+  unsigned int pixelAspectRatioNumer;
+  unsigned int pixelAspectRatioDenom;
   int cleanWidth;
   int cleanHeight;
   int leftOffset;
@@ -174,8 +182,12 @@ struct video_format {
   int source_sampling;
   bool custom_frame_rate_flag;
   FrameRate frame_rate;
+  unsigned int frame_rate_numer;
+  unsigned int frame_rate_denom;    
   bool custom_pixel_aspect_ratio_flag;
-  int pixel_aspect_ratio;          
+  int pixel_aspect_ratio;      
+  unsigned int pixel_aspect_ratio_numer;
+  unsigned int pixel_aspect_ratio_denom;    
   bool custom_clean_area_flag;
   int clean_width;
   int clean_height;
@@ -183,6 +195,10 @@ struct video_format {
   int top_offset;
   bool custom_signal_range_flag;
   int bitdepth;
+  unsigned int luma_excursion;
+  unsigned int luma_offset;
+  unsigned int color_diff_excursion;
+  unsigned int color_diff_offset;
   bool custom_color_spec_flag;
   int color_spec;
   bool custom_color_primaries_flag;
