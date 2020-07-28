@@ -1,6 +1,6 @@
 /*********************************************************************/
 /* EncodeParams.cpp                                                  */
-/* Author: Tim Borer and Galen Reich,  BBC Research & Development    */
+/* Author: Tim Borer and Galen Reich,  BBC Research and Development  */
 /* This version July 2020                                            */
 /*                                                                   */
 /* Defines getting program parameters from command line.             */
@@ -89,7 +89,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     ValueArg<int> cla_lumaDepth("l", "lumaDepth", "Bit depth for luma (defaults to bits per input sample), for RGB use -z", false, 0, "integer", cmd);
     ValueArg<int> cla_bitDepth("z", "bitDepth", "Common bit depth for all components (defaults to bits per input sample)", false, 0, "integer", cmd);
     ValueArg<int> cla_bytes("n", "bytes", "Number of bytes per sample in image file (default 2)", false, 2, "integer", cmd);
-    ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0 or RGB)", true, UNKNOWN, "string", cmd);
+    ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0 or RGB)", true, CF_UNSET, "string", cmd);
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
     ValueArg<int> cla_framerate("r", "framerate", "Frame Rate ( 1 = 24/1.001, 2 = 24, 3 = 25, 4 = 30/1.001, 5 = 30, 6 = 50, 7 = 60/1.001, 8 = 60, 9 = 15/1.001, 10 = 25/2, 11 = 48, 12=48/1.001, 13=96, 14=100, 15=120/1.001, 16=120(default 3)", false, 3, "integer", cmd);
@@ -123,8 +123,6 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     const int slicePrefix = cla_slicePrefix.getValue();
 
     // Check for valid combinations of parameters and options
-    if ((chromaFormat==RGB) && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
-      throw invalid_argument("luma/chroma depth is not appropriate for RGB (use -z or --bitDepth)");
     if (cla_bitDepth.isSet() && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
       throw invalid_argument("bitDepth is incompatible with luma depth (and/or chroma depth): use one or the other");
     if (cla_progressive.isSet() && cla_interlace.isSet())
@@ -142,7 +140,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     // Check parameter values
     if (height<1) throw invalid_argument("picture height must be > 0");
     if (width<1) throw invalid_argument("picture width must be > 0");
-    if (chromaFormat==UNKNOWN)
+    if (chromaFormat==CF_UNSET)
       throw std::invalid_argument("unknown colour format");
     if ( (1>bytes) || (bytes>4) )
       throw std::invalid_argument("bytes must be in range 1 to 4");

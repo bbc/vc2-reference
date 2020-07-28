@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* Picture.h                                                         */
-/* Author: Tim Borer                                                 */
-/* This version 4th September 2012                                   */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Declares stuff related to colour pictures.                        */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #ifndef PICTURE_3MAY11
@@ -14,7 +14,7 @@
 
 #include "Arrays.h"
 
-enum ColourFormat {UNKNOWN, CF444, CF422, CF420, RGB}; //UNKOWN needed for PictureFormat default constructor
+enum ColourFormat {CF_UNSET=-1, CF444, CF422, CF420}; //CF_UNSET needed for PictureFormat default constructor
 
 std::ostream& operator<<(std::ostream& os, ColourFormat format);
 

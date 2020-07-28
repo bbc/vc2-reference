@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* DataUnit.cpp                                                      */
-/* Author: James Weaver                                              */
-/* This version 17th June 2015                                       */
+/* Author: James Weaver and Galen Reich                              */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Defines stuff relating to data units                              */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #include <iostream> //For cin, cout, cerr
@@ -379,30 +379,154 @@ SequenceHeader::SequenceHeader()
   , topFieldFirst (false)
   , bitdepth (0) {}
 
-SequenceHeader::SequenceHeader(Profile p, int h, int w, ColourFormat c, bool i, FrameRate f, bool tff, int bd, bool use_v3)
+SequenceHeader::SequenceHeader( Profile profile, 
+                                int height,
+                                int width,
+                                ColourFormat chromaFormat,
+                                bool interlace,
+                                FrameRate frameRate,
+                                bool topFieldFirst,
+                                int bitdepth,
+
+                                // Optional Args
+                                PixelAspectRatio pixelAspectRatio,
+                                int cleanWidth,
+                                int cleanHeight,
+                                int leftOffset,
+                                int topOffset,
+                                
+                                ColorSpec colorSpec,
+                                int colorPrimaries,
+                                int colorMatrix,
+                                int transferFunction,
+
+                                bool use_v3
+                              )
   : major_version(1)
   , minor_version(0)
-  , profile (p)
-  , width(w)
-  , height(h)
-  , chromaFormat(c)
-  , interlace (i)
-  , frameRate (f)
-  , topFieldFirst (tff)
-  , bitdepth (bd) {
-  if (p == PROFILE_HQ) {
+  , profile (profile)
+
+  , width(width)
+  , height(height)
+  , chromaFormat(chromaFormat)
+  , interlace (interlace)
+  , topFieldFirst (topFieldFirst)
+  , frameRate (frameRate)  
+  , bitdepth (bitdepth)
+  , pixelAspectRatio (pixelAspectRatio)
+  , cleanWidth (cleanWidth)
+  , cleanHeight (cleanHeight)
+  , leftOffset (leftOffset)
+  , topOffset (topOffset)
+  , colorSpec (colorSpec)
+  , colorPrimaries (colorPrimaries)
+  , colorMatrix (colorMatrix)
+  , transferFunction (transferFunction) {
+  if (profile == PROFILE_HQ) {
     major_version = 2;
   }
   if (use_v3 ||
-      f > MAX_V2_FRAMERATE ||
-      bd > 12) {
+      frameRate > MAX_V2_FRAMERATE ||
+      bitdepth > 12) {
     major_version = 3;
   }
 }
 
+SequenceHeader getDefaultSourceParameters(const int base_video_format_index){
+  switch (base_video_format_index) {
+    // To Do: refactor bitdepth to be the index
+    case  0: return  SequenceHeader(PROFILE_UNKNOWN, 480,640,  CF420, false, FR24000_1001,  false,  8, AR1_1,   640,480,0,0,   CS_CUSTOM   ); break;
+    case  1: return  SequenceHeader(PROFILE_UNKNOWN, 120,176,  CF420, false, FR15000_1001,  false,  8, AR10_11, 176,120,0,0,   CS_SDTV_525 ); break;
+    case  2: return  SequenceHeader(PROFILE_UNKNOWN, 144,176,  CF420, false, FR25_2,        true,   8, AR12_11, 176,144,0,0,   CS_SDTV_625 ); break;
+    case  3: return  SequenceHeader(PROFILE_UNKNOWN, 240,352,  CF420, false, FR15000_1001,  false,  8, AR10_11, 352,240,0,0,   CS_SDTV_525 ); break;
+    case  4: return  SequenceHeader(PROFILE_UNKNOWN, 288,352,  CF420, false, FR25_2,        true,   8, AR12_11, 352,288,0,0,   CS_SDTV_625 ); break;
+    case  5: return  SequenceHeader(PROFILE_UNKNOWN, 480,704,  CF420, false, FR15000_1001,  false,  8, AR10_11, 704,480,0,0,   CS_SDTV_525 ); break;
+    case  6: return  SequenceHeader(PROFILE_UNKNOWN, 576,704,  CF420, false, FR25_2,        true,   8, AR12_11, 704,576,0,0,   CS_SDTV_625 ); break;
+    case  7: return  SequenceHeader(PROFILE_UNKNOWN, 480,720,  CF422, true,  FR30000_1001,  false, 10, AR10_11, 704,480,8,0,   CS_SDTV_525 ); break;
+    case  8: return  SequenceHeader(PROFILE_UNKNOWN, 576,720,  CF422, true,  FR25,          true,  10, AR12_11, 704,576,8,0,   CS_SDTV_625 ); break;
+    case  9: return  SequenceHeader(PROFILE_UNKNOWN, 720,1280, CF422, false, FR60000_1001,  true,  10, AR1_1,   1280,720,0,0,  CS_HDTV     ); break;
+    case 10: return  SequenceHeader(PROFILE_UNKNOWN, 720,1280, CF422, false, FR50,          true,  10, AR1_1,   1280,720,0,0,  CS_HDTV     ); break;
+    case 11: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, true,  FR30000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 12: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, true,  FR25,         true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 13: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR60000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 14: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR50,         true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 15: return  SequenceHeader(PROFILE_UNKNOWN, 1080,2048, CF444, false, FR24,         true,  12, AR1_1,   2048,1080,0,0, CS_D_CINEMA ); break;
+    case 16: return  SequenceHeader(PROFILE_UNKNOWN, 2160,4096, CF444, false, FR24,         true,  12, AR1_1,   4096,2160,0,0, CS_D_CINEMA ); break;
+    case 17: return  SequenceHeader(PROFILE_UNKNOWN, 2160,3840, CF422, false, FR60000_1001, true,  10, AR1_1,   3840,2160,0,0, CS_UHDTV    ); break;
+    case 18: return  SequenceHeader(PROFILE_UNKNOWN, 2160,3840, CF422, false, FR50,         true,  10, AR1_1,   3840,2160,0,0, CS_UHDTV    ); break;
+    case 19: return  SequenceHeader(PROFILE_UNKNOWN, 4320,7680, CF422, false, FR60000_1001, true,  10, AR1_1,   7680,4320,0,0, CS_UHDTV    ); break;
+    case 20: return  SequenceHeader(PROFILE_UNKNOWN, 4320,7680, CF422, false, FR50,         true,  10, AR1_1,   7680,4320,0,0, CS_UHDTV    ); break;
+    case 21: return  SequenceHeader(PROFILE_UNKNOWN, 1080,1920, CF422, false, FR24000_1001, true,  10, AR1_1,   1920,1080,0,0, CS_HDTV     ); break;
+    case 22: return  SequenceHeader(PROFILE_UNKNOWN, 486,720,  CF422, true,  FR30000_1001, false,  10, AR10_11, 720,486,0,0,   CS_HDTV     ); break; 
+  default:
+    throw std::logic_error("DataUnitIO: unknown base video format");
+  }
+}
 
-struct video_format {
-  video_format()
+
+bool PictureFormatMatches(const SequenceHeader &fmt,
+                          const int w,
+                          const int h,
+                          const ColourFormat cf,
+                          const FrameRate r,
+                          const int bd,
+                          const bool topFieldFirst) {
+  return ((fmt.width == w) &&
+          (fmt.height == h) &&
+          (fmt.chromaFormat == cf) &&
+          (fmt.frameRate == r) &&
+          (fmt.bitdepth == bd) &&
+          (fmt.topFieldFirst == topFieldFirst));
+}
+
+bool PictureFormatMatches(const SequenceHeader &fmt,
+                          const int index) {
+
+  const SequenceHeader base = getDefaultSourceParameters(index);
+
+return ((fmt.width == base.width) &&
+        (fmt.height == base.height) &&
+        (fmt.chromaFormat == base.chromaFormat) &&
+        (fmt.frameRate == base.frameRate)&&
+        (fmt.bitdepth == base.bitdepth)&&
+        (fmt.interlace == base.interlace) &&
+        (fmt.topFieldFirst == base.topFieldFirst) &&
+        // Optional
+        ((fmt.pixelAspectRatio==-1)||(fmt.pixelAspectRatio == base.pixelAspectRatio)) &&
+        ((fmt.cleanWidth==-1)||(fmt.cleanWidth == base.cleanWidth))&&
+        ((fmt.cleanHeight==-1)||(fmt.cleanHeight == base.cleanHeight))&&
+        ((fmt.leftOffset==-1)||(fmt.leftOffset == base.leftOffset))&&
+        ((fmt.topOffset==-1)||(fmt.topOffset == base.topOffset))&&
+        ((fmt.colorSpec==-1)||(fmt.colorSpec == base.colorSpec)));
+}
+
+int CheckMatch(const SequenceHeader &fmt,
+                          const int index) {
+
+  const SequenceHeader base = getDefaultSourceParameters(index);
+
+  int non_matching_fields =
+                          (fmt.width != base.width) +
+                          (fmt.height != base.height) +
+                          (fmt.chromaFormat != base.chromaFormat) +
+                          (fmt.frameRate != base.frameRate) +
+                          (fmt.bitdepth != base.bitdepth)+
+                          (fmt.interlace != base.interlace) +
+                          // Optional
+                          ((fmt.pixelAspectRatio!=-1)&&(fmt.pixelAspectRatio != base.pixelAspectRatio)) +
+                          ((fmt.cleanWidth!=-1)&&(fmt.cleanWidth != base.cleanWidth))+
+                          ((fmt.cleanHeight!=-1)&&(fmt.cleanHeight != base.cleanHeight))+
+                          ((fmt.leftOffset!=-1)&&(fmt.leftOffset != base.leftOffset))+
+                          ((fmt.topOffset!=-1)&&(fmt.topOffset != base.topOffset))+
+                          ((fmt.colorSpec!=-1)&&(fmt.colorSpec != base.colorSpec));
+
+
+  bool valid = (fmt.topFieldFirst == base.topFieldFirst);
+
+  return valid ? non_matching_fields : -1;
+}
+
+video_format::video_format()
     : major_version(0)
     , minor_version(0)
     , profile (0)
@@ -411,47 +535,30 @@ struct video_format {
     , custom_dimensions_flag (false)
     , frame_width (0)
     , frame_height (0)
+    , custom_color_diff_format_flag (false)
+    , color_diff_format(0)
     , custom_scan_format_flag (false)
     , source_sampling (0)
+    , custom_frame_rate_flag (false)
+    , frame_rate (FR0)
+    , custom_pixel_aspect_ratio_flag (false) 
+    , pixel_aspect_ratio (0)            
+    , custom_clean_area_flag (false)
+    , clean_width (0)
+    , clean_height (0)
+    , left_offset (0)
+    , top_offset (0)
     , custom_signal_range_flag (false)
     , bitdepth (0)
-    , custom_frame_rate_flag (false)
-    , frame_rate (FR0) {}
-
-  video_format(const SequenceHeader &fmt);
-
-  int major_version;
-  int minor_version;
-  int profile;
-  int level;
-  int base_video_format;
-  bool custom_dimensions_flag;
-  int frame_width;
-  int frame_height;
-  bool custom_color_diff_format_flag;
-  int color_diff_format;
-  bool custom_scan_format_flag;
-  int source_sampling;
-  bool custom_signal_range_flag;
-  int bitdepth;
-  bool custom_frame_rate_flag;
-  FrameRate frame_rate;
-  int picture_coding_mode;
-};
-
-bool PictureFormatMatches(const SequenceHeader &fmt,
-                          const int w,
-                          const int h,
-                          const ColourFormat cf,
-                          const FrameRate r,
-                          const int bd) {
-  return ((fmt.width == w) &&
-          (fmt.height == h) &&
-          (fmt.chromaFormat == cf) &&
-          (fmt.frameRate == r) &&
-          (fmt.bitdepth == bd));
-}
-
+    , custom_color_spec_flag (false)
+    , color_spec (0)
+    , custom_color_primaries_flag (0)
+    , color_primaries (0)
+    , custom_color_matrix_flag (false)
+    , color_matrix (0)
+    , custom_transfer_function_flag (false)
+    , transfer_function (0)
+    , top_field_first (false) {}
 
 video_format::video_format(const SequenceHeader &fmt)
     : major_version(0)
@@ -466,10 +573,28 @@ video_format::video_format(const SequenceHeader &fmt)
     , color_diff_format(0)
     , custom_scan_format_flag (false)
     , source_sampling (0)
+    , custom_frame_rate_flag (false)
+    , frame_rate (FR0)
+    , custom_pixel_aspect_ratio_flag (false) 
+    , pixel_aspect_ratio (0)            
+    , custom_clean_area_flag (false)
+    , clean_width (0)
+    , clean_height (0)
+    , left_offset (0)
+    , top_offset (0)
     , custom_signal_range_flag (false)
     , bitdepth (0)
-    , custom_frame_rate_flag (false)
-    , frame_rate (FR0) {
+    , custom_color_spec_flag (false)
+    , color_spec (0)
+    , custom_color_primaries_flag (0)
+    , color_primaries (0)
+    , custom_color_matrix_flag (false)
+    , color_matrix (0)
+    , custom_transfer_function_flag (false)
+    , transfer_function (0)
+    , top_field_first (false)
+
+     {
 
   major_version = fmt.major_version;
   minor_version = fmt.minor_version;
@@ -487,9 +612,9 @@ video_format::video_format(const SequenceHeader &fmt)
 
   if (fmt.interlace) {
     // Level 2
-    if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10))      { base_video_format =  7; level = 2; }
-    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10)) { base_video_format =  8; level = 2; }
-    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10)) { base_video_format = 22; level = 2; }
+    if      (PictureFormatMatches(fmt, 7))      { base_video_format =  7; level = 2; }
+    else if (PictureFormatMatches(fmt, 8)) { base_video_format =  8; level = 2; }
+    else if (PictureFormatMatches(fmt, 22)) { base_video_format = 22; level = 2; }
     else if (fmt.chromaFormat == CF422 &&
              fmt.width == 720 &&
              fmt.height >= 480 &&
@@ -504,68 +629,93 @@ video_format::video_format(const SequenceHeader &fmt)
     }
 
     // Level 3
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10)) { base_video_format = 11; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10)) { base_video_format = 12; level = 3; }
+    else if (PictureFormatMatches(fmt, 11)) { base_video_format = 11; level = 3; }
+    else if (PictureFormatMatches(fmt, 12)) { base_video_format = 12; level = 3; }
   } else {
     // Level 1
-    if (PictureFormatMatches(fmt, 176, 120, CF420, FR15000_1001,      8)) { base_video_format = 1; level = 1; }
-    else if (PictureFormatMatches(fmt, 176, 144, CF420, FR25_2,       8)) { base_video_format = 2; level = 1; }
-    else if (PictureFormatMatches(fmt, 352, 240, CF420, FR15000_1001, 8)) { base_video_format = 3; level = 1; }
-    else if (PictureFormatMatches(fmt, 352, 288, CF420, FR25_2,       8)) { base_video_format = 4; level = 1; }
-    else if (PictureFormatMatches(fmt, 704, 480, CF420, FR15000_1001, 8)) { base_video_format = 5; level = 1; }
-    else if (PictureFormatMatches(fmt, 704, 576, CF420, FR25_2,       8)) { base_video_format = 6; level = 1; }
+    if      (PictureFormatMatches(fmt, 1)) { base_video_format = 1; level = 1; }
+    else if (PictureFormatMatches(fmt, 2)) { base_video_format = 2; level = 1; }
+    else if (PictureFormatMatches(fmt, 3)) { base_video_format = 3; level = 1; }
+    else if (PictureFormatMatches(fmt, 4)) { base_video_format = 4; level = 1; }
+    else if (PictureFormatMatches(fmt, 5)) { base_video_format = 5; level = 1; }
+    else if (PictureFormatMatches(fmt, 6)) { base_video_format = 6; level = 1; }
 
     // Level 2
-    else if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10)) { base_video_format =  7; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10)) { base_video_format =  8; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10)) { base_video_format = 22; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 480, CF422, FR30000_1001, 10, false)) { base_video_format =  7; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 576, CF422, FR25,         10, true)) { base_video_format =  8; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 720, 486, CF422, FR30000_1001, 10, false)) { base_video_format = 22; level = 2; custom_scan_format_flag = true; source_sampling = 0; }
 
     // Level 3
-    else if (PictureFormatMatches(fmt, 1280, 720, CF422, FR60000_1001,  10)) { base_video_format =  9; level = 3; }
-    else if (PictureFormatMatches(fmt, 1280, 720, CF422, FR50,          10)) { base_video_format = 10; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10)) { base_video_format = 11; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10)) { base_video_format = 12; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR60000_1001, 10)) { base_video_format = 13; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR50,         10)) { base_video_format = 14; level = 3; }
-    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR24000_1001, 10)) { base_video_format = 21; level = 3; }
+    else if (PictureFormatMatches(fmt, 9)) { base_video_format =  9; level = 3; }
+    else if (PictureFormatMatches(fmt, 10)) { base_video_format = 10; level = 3; }
+    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR30000_1001, 10, true)) { base_video_format = 11; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 1920, 1080, CF422, FR25,         10, true)) { base_video_format = 12; level = 3; custom_scan_format_flag = true; source_sampling = 0; }
+    else if (PictureFormatMatches(fmt, 13)) { base_video_format = 13; level = 3; }
+    else if (PictureFormatMatches(fmt, 14)) { base_video_format = 14; level = 3; }
+    else if (PictureFormatMatches(fmt, 21)) { base_video_format = 21; level = 3; }
 
     // Level 4
-    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR24, 12)) { base_video_format = 15; level = 4; }
-    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR48, 12)) { base_video_format = 15; level = 4; custom_frame_rate_flag = true; frame_rate = FR48; }
+    else if (PictureFormatMatches(fmt, 15)) { base_video_format = 15; level = 4; }
+    else if (PictureFormatMatches(fmt, 2048, 1080, CF444, FR48, 12, true)) { base_video_format = 15; level = 4; custom_frame_rate_flag = true; frame_rate = FR48; }
 
     // Level 5
-    else if (PictureFormatMatches(fmt, 4096, 2160, CF444, FR24, 12)) { base_video_format = 16; level = 5; }
+    else if (PictureFormatMatches(fmt, 16)) { base_video_format = 16; level = 5; }
 
     // Level 6
-    else if (PictureFormatMatches(fmt, 3840, 2160, CF422, FR60000_1001, 10)) { base_video_format = 17; level = 6; }
-    else if (PictureFormatMatches(fmt, 3840, 2160, CF422, FR50,         10))         { base_video_format = 18; level = 6; }
+    else if (PictureFormatMatches(fmt, 17)) { base_video_format = 17; level = 6; }
+    else if (PictureFormatMatches(fmt, 18)) { base_video_format = 18; level = 6; }
 
     // Level 7
-    else if (PictureFormatMatches(fmt, 7680, 4320, CF422, FR60000_1001, 10)) { base_video_format = 19; level = 7; }
-    else if (PictureFormatMatches(fmt, 7680, 4320, CF422, FR50,         10)) { base_video_format = 20; level = 7; }
+    else if (PictureFormatMatches(fmt, 19)) { base_video_format = 19; level = 7; }
+    else if (PictureFormatMatches(fmt, 20)) { base_video_format = 20; level = 7; }
   }
-
+  
   if (base_video_format == 0) {
-    if (fmt.interlace) {
-      custom_scan_format_flag = true;
-      source_sampling = 1;
+    level = 0 ;
+    int non_matching_fields;
+    int non_matching_fields_prev = 999;
+    for (int base_format = 1; base_format<=22; base_format++){
+      non_matching_fields = CheckMatch(fmt, base_format);
+      if (non_matching_fields == -1) continue;
+      if (non_matching_fields < non_matching_fields_prev){
+        base_video_format = base_format;
+        non_matching_fields_prev = non_matching_fields;
+      }
     }
-    if (fmt.width != 640 || fmt.height != 480) {
+
+    SequenceHeader base = getDefaultSourceParameters(base_video_format);
+
+    if (fmt.interlace != base.interlace) {
+      custom_scan_format_flag = true;
+      source_sampling = fmt.interlace;
+    }
+    if (fmt.width != base.width || fmt.height != base.height) {
       custom_dimensions_flag = true;
       frame_width  = fmt.width;
       frame_height = fmt.height;
     }
-    if (fmt.chromaFormat != CF420) {
+    if (fmt.chromaFormat != base.chromaFormat) {
       custom_color_diff_format_flag = true;
       color_diff_format = fmt.chromaFormat;
     }
-    if (fmt.frameRate != FR24000_1001) {
+    if (fmt.frameRate != base.frameRate) {
       custom_frame_rate_flag = true;
       frame_rate = fmt.frameRate;
+      if (frame_rate == FR0){
+        frame_rate_numer = fmt.frameRateNumer;
+        frame_rate_denom = fmt.frameRateDenom;
+      }
     }
-    if (fmt.bitdepth != 8) {
+    if (fmt.bitdepth != base.bitdepth) {
       custom_signal_range_flag = true;
       switch (fmt.bitdepth) {
+      case  0: 
+        bitdepth = 0;
+        luma_excursion = fmt.lumaExcursion;
+        luma_offset = fmt.lumaOffset;
+        color_diff_excursion = fmt.colorDiffExcursion;
+        color_diff_offset = fmt.colorDiffOffset;
+        break;
       case  8: bitdepth = 1; break;
       case 10: bitdepth = 3; break;
       case 12: bitdepth = 4; break;
@@ -574,12 +724,51 @@ video_format::video_format(const SequenceHeader &fmt)
         throw std::logic_error("DataUnitIO: invalid bit depth");
       }
     }
-  }
+    if ((fmt.pixelAspectRatio != AR_UNSET)&&(fmt.pixelAspectRatio != base.pixelAspectRatio)) {
+      custom_pixel_aspect_ratio_flag = true;
+      pixel_aspect_ratio = fmt.pixelAspectRatio;
+      if(pixel_aspect_ratio == 0){
+        pixel_aspect_ratio_numer = fmt.pixelAspectRatioNumer;
+        pixel_aspect_ratio_denom = fmt.pixelAspectRatioDenom;
+      }
+    }
+    if (
+       (fmt.cleanHeight != -1 ||
+        fmt.cleanWidth  != -1 ||
+        fmt.leftOffset  != -1 ||
+        fmt.topOffset   != -1 )
+        &&
+       (fmt.cleanHeight != base.cleanHeight ||
+        fmt.cleanWidth  != base.cleanWidth  ||
+        fmt.leftOffset  != base.leftOffset  ||
+        fmt.topOffset   != base.topOffset)) {
+      custom_clean_area_flag = true;
+      clean_height = fmt.cleanHeight;
+      clean_width = fmt.cleanWidth;
+      left_offset = fmt.leftOffset;
+      top_offset = fmt.topOffset;
+    }
+    if ((fmt.colorSpec != CS_UNSET)&&(fmt.colorSpec != base.colorSpec)) {
+      custom_color_spec_flag = true;      
+      color_spec = fmt.colorSpec;
+    }
 
-  if (fmt.interlace)
-    picture_coding_mode = 1;
-  else
-    picture_coding_mode = 0;
+    if (fmt.colorSpec == CS_CUSTOM){
+      if (fmt.colorPrimaries != base.colorPrimaries) {
+        custom_color_primaries_flag = true;
+        color_primaries = fmt.colorPrimaries;
+      }
+      if (fmt.colorMatrix != base.colorMatrix) {
+        custom_color_matrix_flag = true;
+        color_matrix = fmt.colorMatrix;  
+      }
+      if (fmt.transferFunction != base.transferFunction) {
+        custom_transfer_function_flag = true;
+        transfer_function = fmt.transferFunction;  
+      }
+    }
+    
+  }
 }
 
 std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
@@ -602,19 +791,7 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
 
   ss << Boolean(fmt.custom_color_diff_format_flag);
   if (fmt.custom_color_diff_format_flag) {
-    switch (fmt.color_diff_format) {
-    case CF422:
-      ss << UnsignedVLC(1);
-      break;
-    case CF420:
-      ss << UnsignedVLC(2);
-      break;
-    case CF444:
-    case RGB:
-    default:
-      ss << UnsignedVLC(0);
-      break;
-    }
+      ss << UnsignedVLC((int)fmt.color_diff_format);
   }
 
   ss << Boolean(fmt.custom_scan_format_flag);
@@ -624,84 +801,68 @@ std::ostream& operator << (std::ostream& ss, const video_format& fmt) {
 
   ss << Boolean(fmt.custom_frame_rate_flag);
   if (fmt.custom_frame_rate_flag) {
-    switch (fmt.frame_rate) {
-    case FR24000_1001:
-      ss << UnsignedVLC(1);
-      break;
-    case FR24:
-      ss << UnsignedVLC(2);
-      break;
-    case FR25:
-      ss << UnsignedVLC(3);
-      break;
-    case FR30000_1001:
-      ss << UnsignedVLC(4);
-      break;
-    case FR30:
-      ss << UnsignedVLC(5);
-      break;
-    case FR50:
-      ss << UnsignedVLC(6);
-      break;
-    case FR60000_1001:
-      ss << UnsignedVLC(7);
-      break;
-    case FR60:
-      ss << UnsignedVLC(8);
-      break;
-    case FR15000_1001:
-      ss << UnsignedVLC(9);
-      break;
-    case FR25_2:
-      ss << UnsignedVLC(10);
-      break;
-    case FR48:
-      ss << UnsignedVLC(11);
-      break;
-    case FR48_1001:
-      ss << UnsignedVLC(12);
-      break;
-    case FR96:
-      ss << UnsignedVLC(13);
-      break;
-    case FR100:
-      ss << UnsignedVLC(14);
-      break;
-    case FR120_1001:
-      ss << UnsignedVLC(15);
-      break;
-    case FR120:
-      ss << UnsignedVLC(16);
-      break;
-    default:
-      {
-        std::stringstream ss;
-        ss << "DataUnitIO: Invalid Frame Rate on output: " << fmt.frame_rate;
-        throw std::logic_error(ss.str());
+      ss << UnsignedVLC((int) fmt.frame_rate);
+      if (fmt.frame_rate == FR0){
+        ss << UnsignedVLC(fmt.frame_rate_numer);
+        ss << UnsignedVLC(fmt.frame_rate_denom);
       }
+  }
+
+  ss << Boolean(fmt.custom_pixel_aspect_ratio_flag);
+  if (fmt.custom_pixel_aspect_ratio_flag){
+      ss << UnsignedVLC((int) fmt.pixel_aspect_ratio);
+      if (fmt.pixel_aspect_ratio == AR0){
+        ss << UnsignedVLC(fmt.pixel_aspect_ratio_numer);
+        ss << UnsignedVLC(fmt.pixel_aspect_ratio_denom);
+      }
+  }
+
+  // To do: handle restrictions on clean area (elsewhere)
+  ss << Boolean(fmt.custom_clean_area_flag);
+  if (fmt.custom_clean_area_flag){
+    ss << UnsignedVLC(fmt.clean_width);
+    ss << UnsignedVLC(fmt.clean_height);
+    ss << UnsignedVLC(fmt.left_offset);
+    ss << UnsignedVLC(fmt.top_offset);
+  }
+
+  // To do: replace bitdepth with signal range num
+  ss << Boolean(fmt.custom_signal_range_flag);
+  if (fmt.custom_signal_range_flag) {
+    // bitdepth here has been replaced by the index 
+    // (in copy_video_fmt_to_hdr)
+    ss << UnsignedVLC(fmt.bitdepth);  
+    if (fmt.bitdepth == 0){
+      ss << UnsignedVLC(fmt.luma_offset);
+      ss << UnsignedVLC(fmt.luma_excursion);
+      ss << UnsignedVLC(fmt.color_diff_offset);
+      ss << UnsignedVLC(fmt.color_diff_excursion);
     }
   }
 
-  ss << Boolean(false); // custom_pixel_aspect_ratio_flag
-
-  ss << Boolean(false); // custom_clean_area_flag
-
-  ss << Boolean(fmt.custom_signal_range_flag);
-  if (fmt.custom_signal_range_flag) {
-    ss << UnsignedVLC(fmt.bitdepth);
+  ss << Boolean(fmt.custom_color_spec_flag);
+  if (fmt.custom_color_spec_flag) {
+    ss << UnsignedVLC((int)fmt.color_spec);
+    if (fmt.color_spec == CS_CUSTOM){
+      ss << Boolean(fmt.custom_color_primaries_flag);
+      if (fmt.custom_color_primaries_flag) {
+        ss << UnsignedVLC(fmt.color_primaries);
+      }
+      ss << Boolean(fmt.custom_color_matrix_flag);
+      if (fmt.custom_color_matrix_flag) {
+        ss << UnsignedVLC(fmt.color_matrix);
+      }
+      ss << Boolean(fmt.custom_transfer_function_flag);
+      if (fmt.custom_transfer_function_flag) {
+        ss << UnsignedVLC(fmt.transfer_function);
+      }
+    }
   }
-
-  if (fmt.custom_color_diff_format_flag && fmt.color_diff_format == RGB) {
-    ss << Boolean(true);
-    ss << UnsignedVLC(0); // Custom
-    ss << Boolean(false); // No custom primaries
-    ss << Boolean(true) << UnsignedVLC(3); // RGB Matrix
-    ss << Boolean(false); // No custom gamma
-  } else 
-    ss << Boolean(false); // custom_color_spec_flag
-
-  ss << UnsignedVLC(fmt.picture_coding_mode);
-
+  // Use the source sampling to determine the picture coding mode
+  // This means that progressive video is always encoded as frames
+  // and interlaced video is always encoded as fields
+  // To do: add a separate parameter for the picture coding mode (11.5)
+  ss << UnsignedVLC(fmt.source_sampling);
   ss << vlc::align;
 
   return ss;
@@ -738,18 +899,13 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   if (custom_color_diff_format_flag) {
     UnsignedVLC color_diff_format;
     stream >> color_diff_format;
-    switch ((unsigned int)color_diff_format) {
-    case 0:
-      fmt.color_diff_format = CF444;
-      break;
-    case 1:
-      fmt.color_diff_format = CF422;
-      break;
-    case 2:
-      fmt.color_diff_format = CF420;
-      break;
-    default:
-      throw std::logic_error("DataUnitIO: Invalid Color Format");
+    try {
+      fmt.color_diff_format = (ColourFormat)(int)color_diff_format;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)color_diff_format;
+      ss << e.what();
+      throw std::logic_error(ss.str());
     }
   }
 
@@ -768,42 +924,60 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
   if (custom_frame_rate_flag) {
     UnsignedVLC index;
     stream >> index;
-    switch(index) {
-    case 1: fmt.frame_rate = FR24000_1001; break;
-    case 2: fmt.frame_rate = FR24; break;
-    case 3: fmt.frame_rate = FR25; break;
-    case 4: fmt.frame_rate = FR30000_1001; break;
-    case 5: fmt.frame_rate = FR30; break;
-    case 6: fmt.frame_rate = FR50; break;
-    case 7: fmt.frame_rate = FR60000_1001; break;
-    case 8: fmt.frame_rate = FR60; break;
-    case 9: fmt.frame_rate = FR15000_1001; break;
-    case 10: fmt.frame_rate = FR25_2; break;
-    case 11: fmt.frame_rate = FR48; break;
-    case 12: fmt.frame_rate = FR48_1001; break;
-    case 13: fmt.frame_rate = FR96; break;
-    case 14: fmt.frame_rate = FR100; break;
-    case 15: fmt.frame_rate = FR120_1001; break;
-    case 16: fmt.frame_rate = FR120; break;
-    default:
-      {
-        std::stringstream ss;
-        ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)index;
-        throw std::logic_error(ss.str());
-      }
+
+    try {
+      fmt.frame_rate = (FrameRate)(int)index;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Frame Rate on Input: " << (int)index;
+      ss << e.what();
+      throw std::logic_error(ss.str());
+    }
+
+    if (fmt.frame_rate == FR0){
+      UnsignedVLC frame_rate_numer;
+      UnsignedVLC frame_rate_denom;
+      stream >> frame_rate_numer;
+      stream >> frame_rate_denom;
+      fmt.frame_rate_numer = frame_rate_numer;
+      fmt.frame_rate_denom = frame_rate_denom;
     }
   }
 
   Boolean custom_pixel_aspect_ratio_flag;
   stream >> custom_pixel_aspect_ratio_flag;
   if (custom_pixel_aspect_ratio_flag) {
-    throw std::logic_error("DataUnitIO: custom_pixel_aspect_ratio_flag set, shouldn't be");
+    UnsignedVLC index;
+    stream >> index;
+    try {
+      fmt.pixel_aspect_ratio = (PixelAspectRatio)(int)index;
+    } catch(const std::exception& e) {
+      std::stringstream ss;
+      ss << "DataUnitIO: Invalid Pixel Aspect Ratio on Input: " << (int)index;
+      ss << e.what();
+      throw std::logic_error(ss.str());
+    }
+    if (fmt.pixel_aspect_ratio == AR0){
+      UnsignedVLC pixel_aspect_ratio_numer;
+      UnsignedVLC pixel_aspect_ratio_denom;
+      stream >> pixel_aspect_ratio_numer;
+      stream >> pixel_aspect_ratio_denom;
+      fmt.pixel_aspect_ratio_numer = pixel_aspect_ratio_numer;
+      fmt.pixel_aspect_ratio_denom = pixel_aspect_ratio_denom;
+    }
   }
 
+  // To do: handle restrictions on clean area (elsewhere?)
   Boolean custom_clean_area_flag;
   stream >> custom_clean_area_flag;
   if (custom_clean_area_flag) {
-    throw std::logic_error("DataUnitIO: custom_clean_area_flag set, shouldn't be");
+    UnsignedVLC clean_width, clean_height, left_offset, top_offset;
+    stream >> clean_width >> clean_height >> left_offset >> top_offset;
+    
+    fmt.clean_height = clean_height;
+    fmt.clean_width = clean_width;
+    fmt.left_offset = left_offset;
+    fmt.top_offset = top_offset;
   }
 
   Boolean custom_signal_range_flag;
@@ -813,44 +987,60 @@ std::istream& operator >> (std::istream& stream, video_format& fmt) {
     UnsignedVLC bitdepth;
     stream >> bitdepth;
     fmt.bitdepth = bitdepth;
+    if (fmt.bitdepth == 0){
+      UnsignedVLC luma_offset, luma_excursion, color_diff_offset, color_diff_excursion;
+      stream >> luma_offset >> luma_excursion >> color_diff_offset >> color_diff_excursion;
+
+      fmt.luma_offset = luma_offset;
+      fmt.luma_excursion = luma_excursion;
+      fmt.color_diff_offset = color_diff_offset;
+      fmt.color_diff_excursion = color_diff_excursion;
+    }
   }
 
   Boolean custom_color_spec_flag;
   stream >> custom_color_spec_flag;
+  fmt.custom_color_spec_flag = custom_color_spec_flag;
   if (custom_color_spec_flag) {
     UnsignedVLC custom_color_spec_index;
     stream >> custom_color_spec_index;
-    if (custom_color_spec_index == 0) {
+    fmt.color_spec = custom_color_spec_index;
+    if ((ColorSpec)(int)custom_color_spec_index == CS_CUSTOM) {
       Boolean custom_color_primaries_flag, custom_color_matrix_flag, custom_transfer_function_flag;
+
       stream >> custom_color_primaries_flag;
+      fmt.custom_color_primaries_flag = custom_color_primaries_flag;
       if (custom_color_primaries_flag) {
         UnsignedVLC color_primaries;
         stream >> color_primaries;
+        fmt.color_primaries = color_primaries;
       }
 
       stream >> custom_color_matrix_flag;
+      fmt.custom_color_matrix_flag = custom_color_matrix_flag;
       if (custom_color_matrix_flag) {
         UnsignedVLC color_matrix;
         stream >> color_matrix;
-
-        if (color_matrix == 3) {
-          fmt.custom_color_diff_format_flag = true;
-          fmt.color_diff_format = RGB;
-        }
+        fmt.color_matrix = color_matrix;
       }
 
       stream >> custom_transfer_function_flag;
+      fmt.custom_transfer_function_flag = custom_transfer_function_flag;
       if (custom_transfer_function_flag) {
         UnsignedVLC transfer_function;
         stream >> transfer_function;
+        fmt.transfer_function = transfer_function;
       }
     }
   }
 
-  
-  UnsignedVLC picture_coding_mode;
-  stream >> picture_coding_mode;
-  fmt.picture_coding_mode = picture_coding_mode;
+  // Determine the picture coding mode from the source_sampling
+  // This means that progressive video is always encoded as frames
+  // and interlaced video is always encoded as fields
+  // To do: add a separate parameter for the picture coding mode (11.5)
+  UnsignedVLC source_sampling;
+  stream >> source_sampling;
+  fmt.source_sampling = source_sampling;
 
   stream >> vlc::align;
 
@@ -999,45 +1189,28 @@ std::ostream& operator << (std::ostream& stream, const FrameRate& r) {
 }
 
 void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
-  SequenceHeader *other;
 
-  switch (fmt.base_video_format) {
-  case  0: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  640,  CF420, false, FR24000_1001, false,  8); break;
-  case  1: other = new SequenceHeader(PROFILE_UNKNOWN, 120,  176,  CF420, false, FR15000_1001, false,  8); break;
-  case  2: other = new SequenceHeader(PROFILE_UNKNOWN, 144,  176,  CF420, false, FR25_2,       true,   8); break;
-  case  3: other = new SequenceHeader(PROFILE_UNKNOWN, 240,  352,  CF420, false, FR15000_1001, false,  8); break;
-  case  4: other = new SequenceHeader(PROFILE_UNKNOWN, 288,  352,  CF420, false, FR25_2,       true,   8); break;
-  case  5: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  704,  CF420, false, FR15000_1001, false,  8); break;
-  case  6: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  704,  CF420, false, FR25_2,       true,   8); break;
-  case  7: other = new SequenceHeader(PROFILE_UNKNOWN, 480,  720,  CF422, true,  FR30000_1001, false, 10); break;
-  case  8: other = new SequenceHeader(PROFILE_UNKNOWN, 576,  720,  CF422, true,  FR25,         true,  10); break;
-  case  9: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR60000_1001, true,  10); break;
-  case 10: other = new SequenceHeader(PROFILE_UNKNOWN, 720,  1280, CF422, false, FR50,         true,  10); break;
-  case 11: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR30000_1001, true,  10); break;
-  case 12: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, true,  FR25,         true,  10); break;
-  case 13: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR60000_1001, true,  10); break;
-  case 14: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR50,         true,  10); break;
-  case 15: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 2048, CF444, false, FR24,         true,  12); break;
-  case 16: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 4096, CF444, false, FR24,         true,  12); break;
-  case 17: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR60000_1001, true,  10); break;
-  case 18: other = new SequenceHeader(PROFILE_UNKNOWN, 2160, 3840, CF422, false, FR50,         true,  10); break;
-  case 19: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR60000_1001, true,  10); break;
-  case 20: other = new SequenceHeader(PROFILE_UNKNOWN, 4320, 7680, CF422, false, FR50,         true,  10); break;
-  case 21: other = new SequenceHeader(PROFILE_UNKNOWN, 1080, 1920, CF422, false, FR24000_1001, true,  10); break;
-  case 22: other = new SequenceHeader(PROFILE_UNKNOWN, 486,  720,  CF422, true,  FR30000_1001, false, 10); break;
-  default:
-    throw std::logic_error("DataUnitIO: unknown base video format");
-  }
+  SequenceHeader base = getDefaultSourceParameters(fmt.base_video_format);
 
-  hdr->profile       = other->profile;
-  hdr->width         = other->width;
-  hdr->height        = other->height;
-  hdr->chromaFormat  = other->chromaFormat;
-  hdr->interlace     = other->interlace;
-  hdr->frameRate     = other->frameRate;
-  hdr->topFieldFirst = other->topFieldFirst;
-  hdr->bitdepth      = other->bitdepth;
-  delete other;
+  hdr->profile       = base.profile;
+  hdr->width         = base.width;
+  hdr->height        = base.height;
+  hdr->chromaFormat  = base.chromaFormat;
+  hdr->interlace     = base.interlace;
+  hdr->frameRate     = base.frameRate;
+  hdr->topFieldFirst = base.topFieldFirst;
+  hdr->bitdepth      = base.bitdepth;
+  // Optional Args
+  hdr->pixelAspectRatio = base.pixelAspectRatio;
+  hdr->cleanWidth       = base.cleanWidth;
+  hdr->cleanHeight      = base.cleanHeight;
+  hdr->leftOffset       = base.leftOffset;
+  hdr->topOffset        = base.topOffset;
+  
+  hdr->colorSpec        = base.colorSpec;
+  hdr->colorPrimaries   = base.colorPrimaries;
+  hdr->colorMatrix      = base.colorMatrix;
+  hdr->transferFunction = base.transferFunction;
 
   hdr->major_version = fmt.major_version;
   hdr->minor_version = fmt.minor_version;
@@ -1060,8 +1233,33 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
     else
       hdr->interlace = true;
   }
+  if (fmt.custom_frame_rate_flag) {
+    hdr->frameRate = fmt.frame_rate;
+    if (fmt.frame_rate == FR0){
+      hdr->frameRateNumer = fmt.frame_rate_numer;
+      hdr->frameRateDenom = fmt.frame_rate_denom;
+    }
+
+    if (fmt.frame_rate > MAX_V2_FRAMERATE)
+      if (hdr->major_version < 3)
+        hdr->major_version = 3;
+  }
+  if (fmt.custom_pixel_aspect_ratio_flag){
+    hdr->pixelAspectRatio = (PixelAspectRatio)fmt.pixel_aspect_ratio;
+    if ((PixelAspectRatio)fmt.pixel_aspect_ratio == AR0){
+      hdr->pixelAspectRatioNumer = fmt.pixel_aspect_ratio_numer;
+      hdr->pixelAspectRatioDenom = fmt.pixel_aspect_ratio_denom;
+    }
+  }
+  if (fmt.custom_clean_area_flag){
+    hdr->cleanWidth   = fmt.clean_width;
+    hdr->cleanHeight  = fmt.clean_height;
+    hdr->leftOffset   = fmt.left_offset;
+    hdr->topOffset    = fmt.top_offset;
+  }
   if (fmt.custom_signal_range_flag) {
     switch (fmt.bitdepth) {
+    case 0: hdr->bitdepth =  0; break;
     case 1: hdr->bitdepth =  8; break;
     case 2: hdr->bitdepth =  8; break;
     case 3: hdr->bitdepth = 10; break;
@@ -1071,18 +1269,31 @@ void copy_video_fmt_to_hdr (SequenceHeader *hdr, video_format &fmt) {
     case 7: hdr->bitdepth = 16; break;
     case 8: hdr->bitdepth = 16; break;
     }
+    if (fmt.bitdepth == 0){
+      hdr->lumaOffset = fmt.luma_offset;
+      hdr->lumaExcursion = fmt.luma_excursion;
+      hdr->colorDiffOffset = fmt.color_diff_offset;
+      hdr->colorDiffExcursion = fmt.color_diff_excursion;
+    }
 
     if (fmt.bitdepth > 4) {
       if (hdr->major_version < 3)
         hdr->major_version = 3;
     }
   }
-  if (fmt.custom_frame_rate_flag) {
-    hdr->frameRate = fmt.frame_rate;
-
-    if (fmt.frame_rate > MAX_V2_FRAMERATE)
-      if (hdr->major_version < 3)
-        hdr->major_version = 3;
+  if (fmt.custom_color_spec_flag){
+    hdr->colorSpec   = (ColorSpec)fmt.color_spec;
+    if ((ColorSpec)fmt.color_spec == CS_CUSTOM){
+      if (fmt.custom_color_primaries_flag){
+        hdr->colorPrimaries = fmt.color_primaries;
+      }
+      if (fmt.custom_color_matrix_flag){
+        hdr->colorMatrix = fmt.color_matrix;
+      }
+      if (fmt.custom_transfer_function_flag){
+        hdr->transferFunction = fmt.transfer_function;
+      }
+    }
   }
 
   //  return hdr;

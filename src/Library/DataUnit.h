@@ -1,10 +1,10 @@
 /*********************************************************************/
 /* DataUnit.h                                                        */
-/* Author: James Weaver                                              */
-/* This version 17th June 2015                                       */
+/* Author: James Weaver and Galen Reich                              */
+/* This version July 2020                                            */
 /*                                                                   */
 /* Declares stuff related to VC2 Data Units.                         */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 #ifndef DATAUNIT_17JUN15
@@ -94,14 +94,40 @@ class WrappedPicture {
     Slices slices;
 };
 
-enum FrameRate { FR0, FR24000_1001, FR24, FR25, FR30000_1001, FR30, FR50, FR60000_1001, FR60, FR15000_1001, FR25_2, FR48, FR48_1001, FR96, FR100, FR120_1001, FR120 };
+enum FrameRate { FR_UNSET = -1, FR0, FR24000_1001, FR24, FR25, FR30000_1001, FR30, FR50, FR60000_1001, FR60, FR15000_1001, FR25_2, FR48, FR48_1001, FR96, FR100, FR120_1001, FR120 };
+//enum ColourFormat {CF_UNSET=-1, CF444, CF422, CF420};
+enum PixelAspectRatio { AR_UNSET = -1, AR0, AR1_1, AR10_11, AR12_11, AR40_33, AR16_11, AR4_3 };
+enum SignalRange { SR_UNSET = -1, SR0, SR8_FULL, SR8, SR10, SR12, SR10_FULL, SR12_FULL, SR16, SR16_FULL};
+enum ColorSpec { CS_UNSET = -1, CS_CUSTOM, CS_SDTV_525, CS_SDTV_625, CS_HDTV, CS_D_CINEMA, CS_UHDTV, CS_HDRTV_PQ, CS_HDRTV_HLG};
 const FrameRate MAX_V2_FRAMERATE = FR48;
 enum Profile { PROFILE_UNKNOWN, PROFILE_LD, PROFILE_HQ };
 
 class SequenceHeader {
 public:
   SequenceHeader();
-  SequenceHeader(Profile profile, int height, int width, ColourFormat chromaFormat, bool interlace, FrameRate frameRate, bool topFieldFirst, int bitdepth, bool use_v3=false);
+  SequenceHeader( Profile profile, 
+                  int height,
+                  int width,
+                  ColourFormat chromaFormat,
+                  bool interlace,
+                  FrameRate frameRate,
+                  bool topFieldFirst,
+                  int bitdepth,
+
+                  // Optional Args
+                  PixelAspectRatio pixelAspectRatio = AR_UNSET,
+                  int cleanWidth = -1,
+                  int cleanHeight = -1,
+                  int leftOffset = -1,
+                  int topOffset = -1,
+                  
+                  ColorSpec colorSpec = CS_UNSET,
+                  int colorPrimaries = 0, // HDTV
+                  int colorMatrix = 0, // HDTV
+                  int transferFunction = 0, //TV Gamma
+                  
+                  bool use_v3 = false
+                );
 
   int major_version;
   int minor_version;
@@ -110,9 +136,79 @@ public:
   int height;
   ColourFormat chromaFormat;
   bool interlace;
-  FrameRate frameRate;
   bool topFieldFirst;
+  FrameRate frameRate;
+  unsigned int frameRateNumer;
+  unsigned int frameRateDenom;
   int bitdepth;
+  unsigned int lumaExcursion;
+  unsigned int lumaOffset;
+  unsigned int colorDiffExcursion;
+  unsigned int colorDiffOffset;
+
+  PixelAspectRatio pixelAspectRatio;
+  unsigned int pixelAspectRatioNumer;
+  unsigned int pixelAspectRatioDenom;
+  int cleanWidth;
+  int cleanHeight;
+  int leftOffset;
+  int topOffset;
+  
+  ColorSpec colorSpec;
+  int colorPrimaries;
+  int colorMatrix;
+  int transferFunction;
+};
+
+SequenceHeader getDefaultSourceParameters(const int base_video_format_index);
+
+struct video_format {
+
+  video_format();
+  video_format(const SequenceHeader &fmt);
+
+  int major_version;
+  int minor_version;
+  int profile;
+  int level;
+  int base_video_format;
+  
+  bool custom_dimensions_flag;
+  int frame_width;
+  int frame_height;
+  bool custom_color_diff_format_flag;
+  int color_diff_format;
+  bool custom_scan_format_flag;
+  int source_sampling;
+  bool custom_frame_rate_flag;
+  FrameRate frame_rate;
+  unsigned int frame_rate_numer;
+  unsigned int frame_rate_denom;    
+  bool custom_pixel_aspect_ratio_flag;
+  int pixel_aspect_ratio;      
+  unsigned int pixel_aspect_ratio_numer;
+  unsigned int pixel_aspect_ratio_denom;    
+  bool custom_clean_area_flag;
+  int clean_width;
+  int clean_height;
+  int left_offset;
+  int top_offset;
+  bool custom_signal_range_flag;
+  int bitdepth;
+  unsigned int luma_excursion;
+  unsigned int luma_offset;
+  unsigned int color_diff_excursion;
+  unsigned int color_diff_offset;
+  bool custom_color_spec_flag;
+  int color_spec;
+  bool custom_color_primaries_flag;
+  int color_primaries;
+  bool custom_color_matrix_flag;
+  int color_matrix;
+  bool custom_transfer_function_flag;
+  int transfer_function;
+
+  bool top_field_first;
 };
 
 class PictureHeader {
