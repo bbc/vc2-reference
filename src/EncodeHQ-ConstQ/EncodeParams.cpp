@@ -123,8 +123,6 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     const int slicePrefix = cla_slicePrefix.getValue();
 
     // Check for valid combinations of parameters and options
-    // if ((chromaFormat==RGB) && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
-    //   throw invalid_argument("luma/chroma depth is not appropriate for RGB (use -z or --bitDepth)");
     if (cla_bitDepth.isSet() && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
       throw invalid_argument("bitDepth is incompatible with luma depth (and/or chroma depth): use one or the other");
     if (cla_progressive.isSet() && cla_interlace.isSet())
