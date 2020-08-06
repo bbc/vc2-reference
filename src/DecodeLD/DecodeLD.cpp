@@ -21,7 +21,7 @@ Its primary output is the decoded image sequence. However it may produce alterna
   3 the quantisation indices used for each slice\n\
   4 the decoded sequence\n\
 Input is just a sequence of compressed bytes.\n\
-Output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0 or RGB).\n\
+Output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0).\n\
 There can be 1 to 4 bytes per sample and the data is left (MSB) justified.\n\
 Data is assumed offset binary (which is fine for both YCbCr or RGB).\n\
 \n\
