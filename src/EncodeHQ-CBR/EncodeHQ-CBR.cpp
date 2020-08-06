@@ -24,7 +24,7 @@ Its primary output is the compressed bytes. However it may produce alternative o
   5 VC2 bitstream (default output)\n\
   6 the decoded sequence\n\
   7 the PSNR for each frame\n\
-Input and output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0 or RGB).\n\
+Input and output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0).\n\
 There can be 1 to 4 bytes per sample and the data is left (MSB) justified.\n\
 Data is assumed offset binary (which is fine for both YCbCr or RGB).\n\
 \n\
