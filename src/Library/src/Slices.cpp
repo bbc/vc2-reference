@@ -111,7 +111,11 @@ const int component_slice_bytes(const Array2D& slice, const char waveletDepth, c
       }
     }
   }
-  return (((count+7)/8 + scalar - 1)/scalar)*scalar; // return whole number of scalar byte units
+  int scaled_slice_length = ((count+7)/8 + scalar - 1)/scalar;
+  if (scaled_slice_length > 0xFF){
+    throw std::logic_error("Slice scalar is too small, consider using a larger slice scalar.");
+  }
+  return scaled_slice_length*scalar; // return whole number of scalar byte units
 }
 
 SliceQuantiser::SliceQuantiser(const Array2D& coefficients,
