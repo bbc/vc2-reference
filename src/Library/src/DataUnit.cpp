@@ -732,7 +732,7 @@ video_format::video_format(const SequenceHeader &fmt)
         pixel_aspect_ratio_denom = fmt.pixelAspectRatioDenom;
       }
     }
-    if (
+    if ( // Custom clean area is set and doesn't match base format: set custom clean area
        (fmt.cleanHeight != -1 ||
         fmt.cleanWidth  != -1 ||
         fmt.leftOffset  != -1 ||
@@ -747,6 +747,18 @@ video_format::video_format(const SequenceHeader &fmt)
       clean_width = fmt.cleanWidth;
       left_offset = fmt.leftOffset;
       top_offset = fmt.topOffset;
+    }
+    else if( // Custom dimensions flag is set and no clean area is set: set clean area to be full picture
+      custom_dimensions_flag &&
+      !(fmt.cleanHeight != -1 ||
+        fmt.cleanWidth  != -1 ||
+        fmt.leftOffset  != -1 ||
+        fmt.topOffset   != -1 )){
+          custom_clean_area_flag = true;
+          clean_height = frame_height;
+          clean_width = frame_width;
+          left_offset = 0;
+          top_offset = 0;
     }
     if ((fmt.colorSpec != CS_UNSET)&&(fmt.colorSpec != base.colorSpec)) {
       custom_color_spec_flag = true;      
