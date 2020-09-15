@@ -22,6 +22,7 @@ src/DecodeStream
 src/EncodeHQ-CBR
 src/EncodeHQ-ConstQ
 src/EncodeLD
+src/EncodeStream
 
 test-driver
 ar-lib

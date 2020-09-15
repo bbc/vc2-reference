@@ -129,5 +129,6 @@ src/DecodeLD/Makefile
 src/EncodeHQ-CBR/Makefile
 src/EncodeHQ-ConstQ/Makefile
 src/EncodeLD/Makefile
+src/EncodeStream/Makefile
 ])
 AC_OUTPUT

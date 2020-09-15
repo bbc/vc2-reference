@@ -6,6 +6,6 @@ else
 OPT_SUBDIRS = 
 endif
 
-SUBDIRS = boost tclap Library DecodeStream EncodeHQ-CBR EncodeHQ-ConstQ EncodeLD $(OPT_SUBDIRS)
+SUBDIRS = boost tclap Library DecodeStream EncodeHQ-CBR EncodeHQ-ConstQ EncodeLD EncodeStream $(OPT_SUBDIRS)
 
 DISTCLEANFILES = vc2reference-stdint.h
