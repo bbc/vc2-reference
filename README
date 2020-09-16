@@ -23,10 +23,10 @@ The EncodeStream tool supports the following profiles:
  o LD -- an OBSOLETE encoder for the Low Delay (LD) profile of VC-2.
    (included for backwards compatibility).
 
-In addition code is included for decoders (DecodeHQ and DecodeLD) which
-take in the compressed bytes of a VC-2 frame without any surrounding
-headers. These are not compiled by default but can be enabled with the
---enable-other-decoders flag to configure.
+In addition, an optional utility (DecodeFrame) is includeded which
+takes in the compressed bytes of a VC-2 frame without any surrounding
+headers. This is not compiled by default but can be enabled with the
+--enable-frame-decoder flag (./configure --enable-frame-decoder).
 
 The googletest testing framework can be used to run tests on the
 repository. This requires the googletest submodule to be added by
