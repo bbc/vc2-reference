@@ -124,8 +124,6 @@ src/boost/Makefile
 src/tclap/Makefile
 src/Library/Makefile
 src/DecodeStream/Makefile
-src/DecodeHQ/Makefile
-src/DecodeLD/Makefile
 src/EncodeStream/Makefile
 src/DecodeFrame/Makefile
 ])
