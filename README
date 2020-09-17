@@ -10,18 +10,23 @@ This repository contains a SMPTE 2042-1 VC-2 reference encoder and
 decoder. It can be compiled using autotools on Linux or Windows and
 includes the following executables once compiled:
 
- o EncodeLD -- an encoder for the Low Delay (LD) profile of VC-2.
- o EncodeHQ-CBR -- an encoder for the High Quality (HQ) profile of
-   VC-2 which encodes at a constant bit rate.
- o EncodeHQ-ConstQ -- an encoder for the High Quality (HQ) profile of
-   VC-2 which encodes with a constant quantiser value.
+ o EncodeStream -- an encoder which will encode a VC-2 compliant stream
+   using one of the supported LD or HQ profiles.
  o DecodeStream -- a decoder which will decode a VC-2 compliant stream
    which complies with the LD or HQ profiles.
 
-In addition code is included for decoders which take in the compressed
-bytes of a VC-2 frame without any surrounding headers. These are not
-compiled by default but can be enabled with the
---enable-other-decoders flag to configure.
+The EncodeStream tool supports the following profiles:
+ o HQ_CBR -- an encoder for the High Quality (HQ) profile of
+   VC-2 which encodes at a constant bit rate.
+ o HQ_ConstQ -- an encoder for the High Quality (HQ) profile of
+   VC-2 which encodes with a constant quantiser value.
+ o LD -- an OBSOLETE encoder for the Low Delay (LD) profile of VC-2.
+   (included for backwards compatibility).
+
+In addition, an optional utility (DecodeFrame) is includeded which
+takes in the compressed bytes of a VC-2 frame without any surrounding
+headers. This is not compiled by default but can be enabled with the
+--enable-frame-decoder flag (./configure --enable-frame-decoder).
 
 The googletest testing framework can be used to run tests on the
 repository. This requires the googletest submodule to be added by

@@ -11,11 +11,11 @@ LDADD = ../Library/libVC2.la \
 	$(BOOST_SYSTEM_LIB)\
 	$(BOOST_THREAD_LIB)
 
-bin_PROGRAMS = EncodeHQ-CBR
+bin_PROGRAMS = DecodeFrame
 
-EncodeHQ_CBR_SOURCES = \
-	EncodeHQ-CBR.cpp \
-	EncodeParams.cpp
+DecodeFrame_SOURCES = \
+	DecodeFrame.cpp \
+	DecodeParams.cpp
 
 noinst_HEADERS = \
-	EncodeParams.h
+	DecodeParams.h

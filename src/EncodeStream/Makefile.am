@@ -11,10 +11,10 @@ LDADD = ../Library/libVC2.la \
 	$(BOOST_SYSTEM_LIB)\
 	$(BOOST_THREAD_LIB)
 
-bin_PROGRAMS = EncodeLD
+bin_PROGRAMS = EncodeStream
 
-EncodeLD_SOURCES = \
-	EncodeLD.cpp \
+EncodeStream_SOURCES = \
+	EncodeStream.cpp \
 	EncodeParams.cpp
 
 noinst_HEADERS = \

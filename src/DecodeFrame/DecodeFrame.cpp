@@ -1,31 +1,33 @@
 /***********************************************************************/
-/* DecodeLD.cpp                                                        */
-/* Author: Tim Borer                                                   */
-/* This version 4th November 2013                                      */
+/* DecodeFrame.cpp                                                     */
+/* Author: Tim Borer and Galen Reich                                   */
+/* This version September 2020                                         */
 /*                                                                     */
 /* Reads compressed transform data in                                  */
-/* Decompresses image using VC-2 Low Delay (LD) profile                */
+/* Decompresses image using chosen VC-2 profile                        */
 /* Writes image data out to a planar file.                             */
 /* It is not necessarily complet nor korrect.                          */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file     */
 /***********************************************************************/
 
 const char version[] = __DATE__ " @ " __TIME__ ;
-const char summary[] = "Decodes the compressed bytes of a VC-2 Low Delay profile to an uncompressed planar file";
+const char summary[] = "Decodes VC-2 compressed bytes without stream syntax to an uncompressed planar file";
 const char description[] = "\
-This program decodes SMPTE VC-2 LD profile compressed transform data to regenerate an image sequence.\n\
-The bit rate must be specified by defining the number of compressed bytes per frame.\n\
+This program decodes SMPTE VC-2 compressed transform data to regenerate an image sequence.\n\
+Two modes are supported:\n\
+  1. HQ - 'High Quality' mode (should be used in all instances)\n\
+  2. LD - 'Low Delay' mode (OBSOLETE and included for backwards compatibility only)\n\
 Its primary output is the decoded image sequence. However it may produce alternative outputs which are:\n\
-  1 the wavelet transform of the decoded output (inverse quantised wavelet coefficients)\n\
-  2 the quantised wavelet coefficients\n\
-  3 the quantisation indices used for each slice\n\
-  4 the decoded sequence\n\
+  1. The wavelet transform of the decoded output (inverse quantised wavelet coefficients)\n\
+  2. The quantised wavelet transform coefficients\n\
+  3. The quantisation indices used for each slice\n\
+  4. The decoded sequence\n\
 Input is just a sequence of compressed bytes.\n\
 Output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0).\n\
 There can be 1 to 4 bytes per sample and the data is left (MSB) justified.\n\
 Data is assumed offset binary (which is fine for both YCbCr or RGB).\n\
 \n\
-Example: DecodeLD -v -x 1920 -y 1080 -f 4:2:2 -i -l 10 -k LeGall -d 3 -u 1 -a 2 -s 829440 inFileName outFileName";
+Example: DecodeFrame -m HQ --width 2 --height 2 --format 4:4:4 --bitDepth 16 --kernel LeGall --waveletDepth 3 --hSlice 1 --vSlice 1 --scalar 2 --verbose inFileName outFileName";
 const char* details[] = {version, summary, description};
 
 #include <cstdlib> //for EXIT_SUCCESS, EXIT_FAILURE, atoi
@@ -82,8 +84,12 @@ try { //Giant try block around all code to get error messages
   const int waveletDepth = params.waveletDepth;
   const int ySize = params.ySize;
   const int xSize = params.xSize;
-  const int compressedBytes = params.compressedBytes;
   const Output output = params.output;
+  const Mode mode = params.mode;
+
+  const int sliceScalar = params.slice_scalar;
+  const int slicePrefix = params.slice_prefix;
+  const int compressedBytes = params.compressedBytes;
 
   if (verbose) {
     clog << endl;
@@ -143,6 +149,7 @@ try { //Giant try block around all code to get error messages
   ostream outStream(pOutBuffer);
 
   if (verbose) {
+    clog << "mode= " << mode << endl;
     clog << "bytes per sample= " << bytes << endl;
     clog << "luma depth (bits) = " << lumaDepth << endl;
     clog << "chroma depth (bits) = " << chromaDepth << endl;
@@ -175,17 +182,18 @@ try { //Giant try block around all code to get error messages
 	  return EXIT_FAILURE;
   }
 
-
   if (verbose) {
     clog << "Vertical slices per picture          = " << ySlices << endl;
     clog << "Horizontal slices per picture        = " << xSlices << endl;
-    // Calculate slice bytes numerator and denominator
-    const utils::Rational sliceBytesNandD =
-      utils::rationalise((interlaced ? compressedBytes/2 : compressedBytes), (ySlices*xSlices));
-    const int SliceBytesNum = sliceBytesNandD.numerator;
-    const int SliceBytesDenom = sliceBytesNandD.denominator;
-    clog << "Slice bytes numerator                = " << SliceBytesNum << endl;
-    clog << "Slice bytes denominator              = " << SliceBytesDenom << endl;
+    if (mode == LD){
+      // Calculate slice bytes numerator and denominator
+      const utils::Rational sliceBytesNandD =
+        utils::rationalise((interlaced ? compressedBytes/2 : compressedBytes), (ySlices*xSlices));
+      const int SliceBytesNum = sliceBytesNandD.numerator;
+      const int SliceBytesDenom = sliceBytesNandD.denominator;
+      clog << "Slice bytes numerator                = " << SliceBytesNum << endl;
+      clog << "Slice bytes denominator              = " << SliceBytesDenom << endl;
+    }
   }
 
   // Calculate the quantisation matrix
@@ -197,11 +205,15 @@ try { //Giant try block around all code to get error messages
     }
     clog << endl;
   }
-  
+
+  Array2D sliceBytesTemp;
+  if (mode == LD){
+    int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
+    sliceBytesTemp = slice_bytes(ySlices, xSlices, pictureBytes, 1);
+  }
+  const Array2D sliceBytes = sliceBytesTemp;
+
   // Construct an container to read the compressed data into.
-  // First calculate number of bytes for each slice
-  const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
-  const Array2D sliceBytes = slice_bytes(ySlices, xSlices, pictureBytes, 1);
   const PictureFormat transformFormat(paddedPictureHeight, paddedWidth, chromaFormat);
   Slices inSlices(transformFormat, waveletDepth, ySlices, xSlices);
 
@@ -226,7 +238,14 @@ try { //Giant try block around all code to get error messages
           clog << "Reading compressed input frame number " << frame;
       }
       clog.flush(); // Make sure comments written to log file.
-      inStream >> sliceio::lowDelay(sliceBytes); // Read input in Low Delay mode
+      // Read input
+      if (mode == HQ)
+        inStream >> sliceio::highQualityVBR(slicePrefix, sliceScalar); 
+      else if (mode == LD)
+        inStream >> sliceio::lowDelay(sliceBytes);
+      else
+        return EXIT_FAILURE;
+      
       inStream >> inSlices; // Read the compressed input picture
       // Check picture was read OK
       if (!inStream) {
@@ -273,7 +292,7 @@ try { //Giant try block around all code to get error messages
     
       // Inverse quantise in transform order
       if (verbose) clog << "Inverse quantise" << endl;
-      const Picture yuvTransform = inverse_quantise_transform(yuvQCoeffs, inSlices.qIndices, qMatrix);
+      const Picture yuvTransform = inverse_quantise_transform_np(yuvQCoeffs, inSlices.qIndices, qMatrix);
 
       if (output==TRANSFORM) {
         //Write transform output as 4 byte 2's comp values

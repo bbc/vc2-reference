@@ -1,22 +1,21 @@
 /*********************************************************************/
-/* EncodeParams.h                                                    */
-/* Author: Tim Borer,  BBC Research                                  */
-/* This version 19th September 2013                                  */
+/* DecodeParams.h                                                    */
+/* Author: Tim Borer and Galen Reich                                 */
+/* This version September 2020                                       */
 /*                                                                   */
 /* Declares getting program parameters from command line.            */
-/* Copyright (c) BBC 2011-2015 -- For license see the LICENSE file   */
+/* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
-#ifndef ENCODERPARAMS_18SEPTEMBER13
-#define ENCODERPARAMS_18SEPTEMBER13
+#ifndef DECODEPARAMS_SEPT20
+#define DECODEPARAMS_SEPT20
 
 #include <string>
-
 #include "Picture.h"
 #include "WaveletTransform.h"
-#include "DataUnit.h"
 
-enum Output {TRANSFORM, QUANTISED, PACKAGED, STREAM, DECODED, PSNR};
+enum Output {TRANSFORM, QUANTISED, INDICES, DECODED};
+enum Mode {HQ, LD};
 
 std::ostream& operator<<(std::ostream&, Output value);
 
@@ -38,14 +37,15 @@ struct ProgramParams {
   int waveletDepth;
   int ySize;
   int xSize;
-  int qIndex;
   enum Output output;
-  FrameRate frame_rate;
+  enum Mode mode;
+  std::string error;
+
   int slice_scalar;
   int slice_prefix;
-  std::string error;
+  int compressedBytes;
 };
 
 ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[]);
 
-#endif // ENCODERPARAMS_18SEPTEMBER13
+#endif // DECODEPARAMS_SEPT20

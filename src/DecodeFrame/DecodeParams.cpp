@@ -44,6 +44,11 @@ namespace TCLAP {
   struct ArgTraits<Output> { // Let TCLAP parse Output objects
     typedef ValueLike ValueCategory;
   };
+
+  template <>
+  struct ArgTraits<Mode> { // Let TCLAP parse Mode objects
+    typedef ValueLike ValueCategory;
+  };
 }
 
 ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[]) {
@@ -70,6 +75,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     UnlabeledValueArg<string> outFile("outFile", "Output file name", true, "-", "string", cmd);
     SwitchArg verbosity("v", "verbose", "Output extra information to standard log", cmd);
     // "cla" prefix == command line argument
+    ValueArg<Mode> cla_mode("m", "mode", "Decoding mode (HQ, LD [OBSOLETE])", false, HQ, "string", cmd);
     ValueArg<Output> cla_output("o", "output", "Program output (Transform, Quantised, Indices, Decoded)", false, DECODED, "string", cmd);
     ValueArg<int> cla_hSliceSize("a", "hSlice", "Horizontical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
     ValueArg<int> cla_vSliceSize("u", "vSlice", "Vertical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
@@ -86,8 +92,10 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     ValueArg<ColourFormat> cla_format("f", "format", "Colour format (4:4:4, 4:2:2, 4:2:0)", true, CF_UNSET, "string", cmd);
     ValueArg<int> cla_width("x", "width", "Picture width", true, 0, "integer", cmd);
     ValueArg<int> cla_height("y", "height", "Picture height", true, 0, "integer", cmd);
+    
     ValueArg<int> cla_sliceScalar("S", "scalar", "Slice Size Scalar (default 1)", false, 1, "integer", cmd);
     ValueArg<int> cla_slicePrefix("P", "prefix", "Slice Prefix Bytes (default 0)", false, 0, "integer", cmd);
+    ValueArg<int> cla_compressedBytes("s", "compressedBytes", "compressed bytes (size in bytes)", false, 0, "integer", cmd);
 
     // Parse the argv array
     cmd.parse(argc, argv);
@@ -110,8 +118,11 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     const int ySize = cla_vSliceSize.getValue();
     const int xSize = cla_hSliceSize.getValue();
     const Output output = cla_output.getValue();
+    const Mode mode = cla_mode.getValue();
+
     const int sliceScalar = cla_sliceScalar.getValue();
     const int slicePrefix = cla_slicePrefix.getValue();
+    const int compressedBytes = cla_compressedBytes.getValue();
 
     // Check for valid combinations of parameters and options
     if (cla_bitDepth.isSet() && (cla_lumaDepth.isSet() || cla_chromaDepth.isSet()))
@@ -152,10 +163,21 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     if (waveletDepth<1)
       throw std::invalid_argument("wavelet depth must be 1 or more");
     
-    if (sliceScalar<1)
+
+    // Multiple modes option logic - commandline args are given correctly
+    if (mode == LD && !cla_compressedBytes.isSet())
+      throw std::invalid_argument("In LD mode compressedBytes must be set");
+    if (mode == LD && cla_slicePrefix.isSet())
+      throw std::invalid_argument("In LD mode slicePrefix is not required");
+    if (mode == LD && cla_sliceScalar.isSet())
+      throw std::invalid_argument("In LD mode sliceScalar is not required");
+    if (mode == HQ && cla_compressedBytes.isSet())
+      throw std::invalid_argument("In HQ mode compressedBytes is not required");
+
+    if (mode == HQ && sliceScalar<1)
       throw std::invalid_argument("Slice Scalar must be 1 or more");
 
-    if (slicePrefix<0)
+    if (mode == HQ && slicePrefix<0)
       throw std::invalid_argument("Slice Prefix must be 0 or more");
 
 
@@ -175,8 +197,10 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char* details[
     params.ySize = ySize;
     params.xSize = xSize;
     params.output = output;
+
     params.slice_scalar = sliceScalar;
     params.slice_prefix = slicePrefix;
+    params.compressedBytes = compressedBytes;
 
   }
 
@@ -222,6 +246,33 @@ std::istream& operator>>(std::istream& is, Output& output) {
         else if (text == "Quantised") output = QUANTISED;
         else if (text == "Indices") output = INDICES;
         else if (text == "Decoded") output = DECODED;
+        else is.setstate(std::ios_base::badbit|std::ios_base::failbit);
+        // Alternatively
+        // else throw std::invalid_argument("invalid input");
+        return is;
+}
+
+std::ostream& operator<<(std::ostream& os, Mode mode) {
+  const char* s;
+  switch (mode) {
+    case HQ:
+      s = "HQ";
+      break;
+    case LD:
+      s = "LD";
+      break;
+    default:
+      s = "Unknown mode!";
+      break;
+  }
+  return os<<s;
+}
+
+std::istream& operator>>(std::istream& is, Mode& mode) {
+        std::string text;
+        is >> text;
+        if (text == "HQ") mode = HQ;
+        else if (text == "LD") mode = LD;
         else is.setstate(std::ios_base::badbit|std::ios_base::failbit);
         // Alternatively
         // else throw std::invalid_argument("invalid input");

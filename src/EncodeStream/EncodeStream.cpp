@@ -1,34 +1,39 @@
 /*********************************************************************/
-/* EncodeHQCBR.cpp                                                   */
+/* EncodeStream.cpp                                                  */
 /* Author: Tim Borer and Galen Reich                                 */
 /* This version July 2020                                            */
 /*                                                                   */
 /* Reads image data in from a planar file.                           */
-/* Compresses image using VC-2 High Quality profile @CBR.            */
-/* Write compressed transform data out (not complete stream).        */
+/* Compresses image using VC-2                                       */
+/*                                                                   */
 /* It is not necessarily complet nor korrect.                        */
 /* Copyright (c) BBC 2011-2020 -- For license see the LICENSE file   */
 /*********************************************************************/
 
 const char version[] = __DATE__ " @ " __TIME__ ;
-const char summary[] = "Encodes an uncompressed planar video file with VC-2 High Quality profile at constant bit rate";
+const char summary[] = "Encodes an uncompressed planar video file with the selected VC-2 encoder";
 const char description[] = "\
-This program compresses an image sequence using SMPTE VC-2 HQ profile.\n\
-It implements constant bit rate coding.\n\
-The bit rate is specified by defining the number of compressed bytes per frame.\n\
-Its primary output is the compressed bytes. However it may produce alternative outputs which are:\n\
-  1 the wavelet transform of the input\n\
-  2 the quantised wavelet coefficients\n\
-  3 the quantisation indices used for each slice\n\
-  4 compressed bytes\n\
-  5 VC2 bitstream (default output)\n\
-  6 the decoded sequence\n\
-  7 the PSNR for each frame\n\
+This program compresses an image sequence using the SMPTE VC-2 encoder.\n\
+\n\
+Three encoder profiles are available:\n\
+  1. HQ_CBR - High Quality Constant Bit Rate Encoder\n\
+  2. HQ_ConstQ - High Quality Constant Quality (Variable Bit Rate) Encoder\n\
+  3. LD - Low Delay Encoder (OBSOLETE, included for back-compatibility, use a High Quality encoder instead)\n\
+\n\
+This program outputs the compressed bytes of a VC-2 stream. It may also be set to produce alternative outputs which are:\n\
+  1. TRANSFORM - The wavelet transform of the input\n\
+  2. QUANTISED - The quantised wavelet transform coefficients\n\
+  3. INDICES - The quantisation indices used for each slice (\n\
+  4. PACKAGED - The compressed bytes without the VC2 stream syntax\n\
+  5. STREAM - The VC2 bitstream (default output)\n\
+  6. DECODED - The decoded sequence after inverse wavelet transform\n\
+  7. PSNR -  The Peak Signal-to-Noise Ratio for each frame\n\
+\n\
 Input and output (where appropriate) are in planar format (4:4:4, 4:2:2, 4:2:0).\n\
 There can be 1 to 4 bytes per sample and the data is left (MSB) justified.\n\
 Data is assumed offset binary (which is fine for both YCbCr or RGB).\n\
 \n\
-Example: EncodeHQ-CBR -v -x 1920 -y 1080 -f 4:2:2 -l 10 -k LeGall -d 3 -u 1 -a 2 -s 829440 -i inFileName outFileName";
+Example: EncodeStream -m HQ_CBR -v -x 1920 -y 1080 -f 4:2:2 -l 10 -k LeGall -d 3 -u 1 -a 2 -s 829440 -i inFileName outFileName";
 const char* details[] = {version, summary, description};
 
 #include <cstdlib> //for EXIT_SUCCESS, EXIT_FAILURE, atoi
@@ -64,8 +69,8 @@ using std::ios_base;
 using std::istream;
 using std::ostream;
 
-// Calculate quantisation indices using a binary search
-const Array2D quantIndices(const Picture& coefficients,
+// Calculate quantisation indices using a binary search for HQ_CBR Mode
+const Array2D quantIndicesCBR(const Picture& coefficients,
                            const Array1D& qMatrix,
                            const Array2D& sliceBytes,
                            const int scalar) {
@@ -119,6 +124,126 @@ const Array2D quantIndices(const Picture& coefficients,
   return indices;
 }
 
+// Fill quantisation indices for ConstQ Mode
+const Array2D quantIndicesConstQ(const Picture& coefficients,
+                                 const int ySlices, const int xSlices,
+                                 const Array1D& qMatrix,
+                                 const int qIndex) {
+  // Create an empty array of indices to fill and return
+  Array2D indices(extents[ySlices][xSlices]);
+
+  std::fill(indices.data(), indices.data()+indices.num_elements(), qIndex);
+  
+  return indices;
+}
+
+// Class for OBSOLETE LD mode quantisation calculation
+class SliceQuantiserRef: public SliceQuantiser {
+  public:
+    SliceQuantiserRef(const Array2D& coefficients,
+                      int vSlices, int hSlices,
+                      const Array1D& quantMatrix);
+    virtual const Array2D& quantise_slice(int qIndex);
+  private:
+    const Array2D& coeffs; //Keep a reference to transform coefficients
+    Array2D decodedLLCoeffs; //Locally decoded LL subband coefficients
+    Array2D qMatrix; //quantMatrix values in slice format
+};
+
+SliceQuantiserRef::SliceQuantiserRef(const Array2D& coefficients,
+                                     int vSlices, int hSlices,
+                                     const Array1D& quantMatrix):
+  SliceQuantiser(coefficients, vSlices, hSlices, quantMatrix),
+  coeffs(coefficients)
+{
+  const int LLHeight = coeffsHeight/transformSize;
+  const int LLWidth = coeffsWidth/transformSize;
+  decodedLLCoeffs.resize(extents[LLHeight][LLWidth]);
+  qMatrix.resize(extents[sliceHeight][sliceWidth]);
+  // Fill qMatrix with the appropriate values
+  BlockVector xQMatrix = split_into_subbands(qMatrix, waveletDepth);
+  for (int band=0; band<numberOfSubbands; ++band) {
+    std::fill(xQMatrix[band].data(),
+              xQMatrix[band].data()+xQMatrix[band].num_elements(),
+              quantMatrix[band]);
+  }
+  qMatrix = merge_subbands(xQMatrix);
+}
+
+const Array2D& SliceQuantiserRef::quantise_slice(int qIndex) {
+  for (int y=0, yPos=v*sliceHeight; y<sliceHeight; ++y, ++yPos) {
+    for (int x=0, xPos=h*sliceWidth; x<sliceWidth; ++x, ++xPos) {
+      const int adjustedQ = adjust_quant_index(qIndex, qMatrix[y][x]);
+      // Note: for efficiency test could be done by bit compare of LSBs
+      if ( ((y%transformSize)==0)&&((x%transformSize)==0) ) { // LL Subband
+        // Note: For efficiency division could be done by a bit shift.
+        const int yLL = yPos/transformSize; // index to LL subband
+        const int xLL = xPos/transformSize; // index to LL subband
+        const int prediction = predictDC(decodedLLCoeffs, yLL, xLL);
+        qSlice[y][x] = quant(coeffs[yPos][xPos]-prediction, adjustedQ);
+        decodedLLCoeffs[yLL][xLL] = scale(qSlice[y][x], adjustedQ)+prediction;
+      }
+      else {
+        qSlice[y][x] = quant(coeffs[yPos][xPos], adjustedQ);
+      }
+    }
+  }
+  return qSlice;
+}
+
+// Calculate quantisation indices for the OBSOLETE LD Mode
+const Array2D quantIndicesLD(const Picture& coefficients,
+                           const Array1D& qMatrix,
+                           const Array2D& sliceBytes) {
+  const int ySlices = sliceBytes.shape()[0];
+  const int xSlices = sliceBytes.shape()[1];
+  // Create an empty array of indices to fill and return
+  Array2D indices(extents[ySlices][xSlices]); 
+  // Wavelet depth & number of subbands derived from dimensions of qMatrix
+  const int numberOfSubbands = qMatrix.size();
+  const int waveletDepth = (numberOfSubbands-1)/3;
+  // Create state machines to quantise slices, with trial quantisers, in raster order
+  SliceQuantiserRef ySliceQuantiser(coefficients.y(), ySlices, xSlices, qMatrix);
+  SliceQuantiserRef uSliceQuantiser(coefficients.c1(), ySlices, xSlices, qMatrix);
+  SliceQuantiserRef vSliceQuantiser(coefficients.c2(), ySlices, xSlices, qMatrix);
+  bool sliceAvailable = true;
+  while (sliceAvailable) {
+    const int bytes = sliceBytes[ySliceQuantiser.row()][ySliceQuantiser.column()];
+    const int length_bits = utils::intlog2(8*bytes-7);
+    const int bitsAvailable = 8*bytes - 7 - length_bits;
+
+    int trialQ = 63;
+    int q = 127;
+    int delta = 64;
+    while (delta>0) {
+      delta >>= 1;
+      const Array2D yTrialSlice = ySliceQuantiser.quantise_slice(trialQ);
+      const Array2D uTrialSlice = uSliceQuantiser.quantise_slice(trialQ);
+      const Array2D vTrialSlice = vSliceQuantiser.quantise_slice(trialQ);
+      int bitsRequired = luma_slice_bits(yTrialSlice, waveletDepth);
+      bitsRequired += chroma_slice_bits(uTrialSlice, vTrialSlice, waveletDepth);
+      if (bitsRequired<=bitsAvailable) {
+        if (trialQ<q) q=trialQ;
+        trialQ -= delta;
+      }
+      else {
+        trialQ +=delta;
+      }
+    }
+    // The slices must be requantised with the correct q to ensure correct DC prediction
+    ySliceQuantiser.quantise_slice(q);
+    uSliceQuantiser.quantise_slice(q);
+    vSliceQuantiser.quantise_slice(q);
+    indices[ySliceQuantiser.row()][ySliceQuantiser.column()] = q;
+
+    // Go to next slice
+    sliceAvailable = ySliceQuantiser.next_slice();
+    uSliceQuantiser.next_slice();
+    vSliceQuantiser.next_slice();
+  }
+  return indices;
+}
+
 int main(int argc, char * argv[]) {
   
 try { //Giant try block around all code to get error messages
@@ -146,12 +271,15 @@ try { //Giant try block around all code to get error messages
   const int waveletDepth = params.waveletDepth;
   const int ySize = params.ySize;
   const int xSize = params.xSize;
-  const int compressedBytes = params.compressedBytes;
+  const Mode mode = params.mode;
   const Output output = params.output;
   const FrameRate frame_rate = params.frame_rate;
-  const int sliceScalar = params.slice_scalar;
-  const int slicePrefix = params.slice_prefix;
-  const int fragmentLength = params.fragment_length;
+
+  const int sliceScalar = params.slice_scalar; // HQ_ConstQ HQ_CBR
+  const int slicePrefix = params.slice_prefix; // HQ_ConstQ HQ_CBR
+  const int fragmentLength = params.fragment_length; // HQ_CBR LD
+  const int compressedBytes = params.compressedBytes; // HQ_CBR LD
+  const int qIndex = params.qIndex; // HQ_ConstQ
 
   if (verbose) {
     clog << endl;
@@ -219,6 +347,7 @@ try { //Giant try block around all code to get error messages
   PictureFormat format(height, width, chromaFormat);
 
   if (verbose) {
+    clog << "mode= " << mode <<endl;
     clog << "bytes per sample= " << bytes << endl;
     clog << "luma depth (bits) = " << lumaDepth << endl;
     clog << "chroma depth (bits) = " << chromaDepth << endl;
@@ -243,25 +372,27 @@ try { //Giant try block around all code to get error messages
   const int paddedWidth = paddedSize(width, waveletDepth);
   const int ySlices = (paddedPictureHeight + yTransformSize - 1)/yTransformSize;
   const int xSlices = (paddedWidth + xTransformSize - 1)/xTransformSize;
-  /*  if (paddedPictureHeight != (ySlices*yTransformSize) ) {
+  if (paddedPictureHeight != (ySlices*yTransformSize) ) {
     throw std::logic_error("Padded picture height is not divisible by slice height");
 	  return EXIT_FAILURE;
   } 
   if (paddedWidth != (xSlices*xTransformSize) ) {
     throw std::logic_error("Padded width is not divisible by slice width");
 	  return EXIT_FAILURE;
-    }*/
+    }
 
   if (verbose) {
     clog << "Vertical slices per picture          = " << ySlices << endl;
     clog << "Horizontal slices per picture        = " << xSlices << endl;
-    // Calculate slice bytes numerator and denominator
-    const utils::Rational sliceBytesNandD =
-      utils::rationalise((interlaced ? compressedBytes/2 : compressedBytes), (ySlices*xSlices));
-    const int SliceBytesNum = sliceBytesNandD.numerator;
-    const int SliceBytesDenom = sliceBytesNandD.denominator;
-    clog << "Slice bytes numerator                = " << SliceBytesNum << endl;
-    clog << "Slice bytes denominator              = " << SliceBytesDenom << endl;
+    if (mode == HQ_CBR){
+      // Calculate slice bytes numerator and denominator
+      const utils::Rational sliceBytesNandD =
+        utils::rationalise((interlaced ? compressedBytes/2 : compressedBytes), (ySlices*xSlices));
+      const int SliceBytesNum = sliceBytesNandD.numerator;
+      const int SliceBytesDenom = sliceBytesNandD.denominator;
+      clog << "Slice bytes numerator                = " << SliceBytesNum << endl;
+      clog << "Slice bytes denominator              = " << SliceBytesDenom << endl;
+    }
   }
 
   // Calculate the quantisation matrix
@@ -273,10 +404,8 @@ try { //Giant try block around all code to get error messages
     }
     clog << endl;
   }
-
-  const int pictureSlices = ySlices*xSlices;
+  
   const int framePics = (interlaced ? 2 : 1);
-  const int totalSlices = framePics*pictureSlices;
 
   //Create input & output frames
   Frame inFrame(format, interlaced, topFieldFirst);
@@ -289,7 +418,7 @@ try { //Giant try block around all code to get error messages
   if (output==STREAM) {
     if (verbose) clog << endl << "Writing Sequence Header" << endl << endl;
     outStream << dataunitio::start_sequence;
-    if (fragmentLength > 0)
+    if ((mode == HQ_CBR || mode == LD) && fragmentLength > 0)
       outStream << dataunitio::fragmentedPictures(fragmentLength);
     outStream << SequenceHeader(PROFILE_HQ, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
   }
@@ -338,14 +467,31 @@ try { //Giant try block around all code to get error messages
 	        return EXIT_FAILURE; }
         continue; // omit rest of processing for this picture
       }
-      
-      // Choose quantisation indices to achieve a size of compressedBytes for the frame
-      if (verbose) clog << "Determine quantisation indices" << endl;
-      const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
-      // Calculate number of bytes for each slice
-      const Array2D bytes = slice_bytes(ySlices, xSlices, pictureBytes, sliceScalar);
-      Array2D qIndices = quantIndices(transform, qMatrix, bytes, sliceScalar);
-    
+
+      Array2D qIndices;
+      Array2D bytes;
+
+      if (mode == HQ_CBR){
+        // Choose quantisation indices to achieve a size of compressedBytes for the frame
+        if (verbose) clog << "Determine quantisation indices" << endl;
+        const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
+        // Calculate number of bytes for each slice
+        bytes = slice_bytes(ySlices, xSlices, pictureBytes, sliceScalar);
+        qIndices = quantIndicesCBR(transform, qMatrix, bytes, sliceScalar);
+      }
+      else if (mode == HQ_ConstQ){
+        qIndices = quantIndicesConstQ(transform, ySlices, xSlices, qMatrix, qIndex);
+      }
+      else if (mode == LD){
+        // Choose quantisation indices to achieve a size of compressedBytes for the frame
+        if (verbose) clog << "Determine quantisation indices" << endl;
+        const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
+        // Calculate number of bytes for each slice
+        bytes = slice_bytes(ySlices, xSlices, pictureBytes, 1);
+        qIndices = quantIndicesLD(transform, qMatrix, bytes);
+      }
+      const Array2D sliceBytes = bytes;
+
       // Analyse quantiser index stats
       for (int v=0; v<ySlices; ++v) {
         for (int h=0; h<xSlices; ++h) {
@@ -390,7 +536,20 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << sliceio::highQualityCBR(bytes, slicePrefix, sliceScalar); // Write output in HQ CBR mode
+          switch(mode){
+            case HQ_CBR: 
+              // Write output in HQ CBR mode
+              outStream << sliceio::highQualityCBR(sliceBytes, slicePrefix, sliceScalar);
+              break;
+            case HQ_ConstQ: 
+              // Write output in HQ ConstQ mode
+              outStream << sliceio::highQualityVBR(slicePrefix, sliceScalar);
+              break;
+            case LD: 
+              // Write output in HQ CBR mode
+              outStream << sliceio::lowDelay(sliceBytes);
+              break;
+          }
         outStream << outSlices;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
@@ -413,7 +572,21 @@ try { //Giant try block around all code to get error messages
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
-        outStream << dataunitio::highQualityCBR(bytes, slicePrefix, sliceScalar); // Write output in HQ CBR mode
+
+        switch(mode){
+            case HQ_CBR: 
+              // Write output in HQ CBR mode
+              outStream << dataunitio::highQualityCBR(sliceBytes, slicePrefix, sliceScalar);
+              break;
+            case HQ_ConstQ: 
+              // Write output in HQ ConstQ mode
+              outStream << dataunitio::highQualityVBR(slicePrefix, sliceScalar);
+              break;
+            case LD: 
+              // Write output in LD mode
+              outStream << sliceio::lowDelay(sliceBytes);
+              break;
+          }
         outStream << outWrapped;
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
@@ -452,6 +625,10 @@ try { //Giant try block around all code to get error messages
     // Calculate mean and standard deviation of quantiser index
     float mean, meanSquare, stdDev;
     if (output!=TRANSFORM) { // No quant stats if output is TRANSFORM
+
+      const int pictureSlices = ySlices*xSlices;
+      const int totalSlices = framePics*pictureSlices;
+
       int topIndex = -1;
       for (int i=0; i<128; ++i) if (stats[i]>0) topIndex=i;
       mean = 0.0;

@@ -47,15 +47,15 @@ AC_CONFIG_MACRO_DIR([m4])
 ACLOCAL_AMFLAGS="-I m4 $ACLOCAL_AMFLAGS"
 AC_SUBST(ACLOCAL_AMFLAGS)
 
-AC_MSG_CHECKING(whether to enable other decoders)
-AC_ARG_ENABLE([other-decoders],
-[  --enable-other-decoders    Turn on other decoders],
+AC_MSG_CHECKING(whether to enable frame decoder)
+AC_ARG_ENABLE([frame-decoder],
+[  --enable-frame-decoder    Turn on frame decoder],
 [case "${enableval}" in
-  yes) otherdecoders=true ;;
-  no)  otherdecoders=false ;;
-  *) AC_MSG_ERROR([bad value ${enableval} for --enable-other-decoders]) ;;
-esac],[otherdecoders=false])
-AM_CONDITIONAL([ENABLE_OTHER_DECODERS], [test "x$otherdecoders" = "xtrue"])
+  yes) framedecoder=true ;;
+  no)  framedecoder=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-frame-decoder]) ;;
+esac],[framedecoder=false])
+AM_CONDITIONAL([ENABLE_FRAME_DECODER], [test "x$framedecoder" = "xtrue"])
 
 VC2REFERENCE_CFLAGS="$VC2REFERENCE_CFLAGS -g -Og -DDEBUG"
 CXXFLAGS="-Og"
@@ -124,10 +124,7 @@ src/boost/Makefile
 src/tclap/Makefile
 src/Library/Makefile
 src/DecodeStream/Makefile
-src/DecodeHQ/Makefile
-src/DecodeLD/Makefile
-src/EncodeHQ-CBR/Makefile
-src/EncodeHQ-ConstQ/Makefile
-src/EncodeLD/Makefile
+src/EncodeStream/Makefile
+src/DecodeFrame/Makefile
 ])
 AC_OUTPUT
