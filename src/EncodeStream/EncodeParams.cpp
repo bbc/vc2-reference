@@ -81,7 +81,7 @@ ProgramParams getCommandLineParams(int argc, char * argv[], const char * details
     UnlabeledValueArg<string> outFile("outFile", "Output file name (use \"-\" for standard output)", true, "-", "string", cmd);
     SwitchArg verbosity("v", "verbose", "Output extra information to standard log", cmd);
     // "cla" prefix == command line argument
-    ValueArg<Mode> cla_mode("m", "encodingMode", "Encoding mode (HQ_ConstQ, HQ_CBR, LD [depreciated])", true, HQ_ConstQ, "string", cmd);
+    ValueArg<Mode> cla_mode("m", "mode", "Encoding mode (HQ_ConstQ, HQ_CBR, LD [depreciated])", true, HQ_ConstQ, "string", cmd);
     ValueArg<Output> cla_output("o", "output", "Program output (Transform, Quantised, Indices, Packaged, Stream, Decoded, PSNR)", false, STREAM, "string", cmd);
     ValueArg<int> cla_hSliceSize("a", "hSlice", "Horizontical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
     ValueArg<int> cla_vSliceSize("u", "vSlice", "Vertical slice size (in units of 2**(wavelet depth))", true, 0, "integer", cmd);
