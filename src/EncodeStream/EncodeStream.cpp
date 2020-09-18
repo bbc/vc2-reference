@@ -420,7 +420,11 @@ try { //Giant try block around all code to get error messages
     outStream << dataunitio::start_sequence;
     if ((mode == HQ_CBR || mode == LD) && fragmentLength > 0)
       outStream << dataunitio::fragmentedPictures(fragmentLength);
-    outStream << SequenceHeader(PROFILE_HQ, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
+    if (mode == HQ_CBR || mode == HQ_ConstQ){
+      outStream << SequenceHeader(PROFILE_HQ, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
+    } else if (mode == LD){
+      outStream << SequenceHeader(PROFILE_LD, format.lumaHeight(), format.lumaWidth(), format.chromaFormat(), interlaced, frame_rate, topFieldFirst, lumaDepth);
+    }
   }
   while (true) {
 
