@@ -25,15 +25,6 @@ AC_SUBST(VC2REFERENCE_MAJORMINOR)
 
 AC_CONFIG_HEADERS([config.h])
 
-# CURRENT, REVISION, AGE
-# - library source changed but interface the same -> increment REVISION
-# - interfaces added/removed/changed -> increment CURRENT, set REVISION = 0
-# - interfaces added -> increment AGE also
-# - interfaces removed -> set AGE = 0
-#    (AGE is the number of previous values of CURRENT that are compatible)
-VC2REFERENCE_LIBVERSION="0:0:0"
-AC_SUBST(VC2REFERENCE_LIBVERSION)
-
 AM_PROG_AR
 LT_PREREQ([2.2.6])
 LT_INIT(disable-static win32-dll)
