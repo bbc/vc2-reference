@@ -13,7 +13,7 @@
 
 #include "Utils.h"
 
-#include "boost/math/common_factor_rt.hpp"  // For gcd function
+#include "boost/integer/common_factor_rt.hpp"  // For gcd function
 
 // Does what it says on the tin. Returns file size in bytes.
 // Leaves the read pointer in the same position
@@ -64,7 +64,7 @@ unsigned long utils::getPictureNumber(int fieldNumber, unsigned long long frameN
 
 const utils::Rational utils::rationalise(const int numerator,
                                          const int denominator) {
-  const int gcd = boost::math::gcd(numerator, denominator);
+  const int gcd = boost::integer::gcd(numerator, denominator);
   utils::Rational result;
   result.numerator = numerator/gcd;
   result.denominator = denominator/gcd;
