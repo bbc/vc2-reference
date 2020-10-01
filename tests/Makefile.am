@@ -4,20 +4,20 @@ libgtest_la_CPPFLAGS =  -I$(top_srcdir)/googletest/googletest/include \
                         -I$(top_srcdir)/googletest/googletest -pthread 
 libgtest_la_LDFLAGS = -pthread
 
-MAIN_LDADD :=   libgtest.la \
+MAIN_LDADD =   libgtest.la \
                 $(top_srcdir)/src/Library/libVC2.la \
                 $(BOOST_LDFLAGS) \
                 $(BOOST_SYSTEM_LIB)\
                 $(BOOST_THREAD_LIB)
 
-MAIN_CPPFLAGS :=    -I$(top_srcdir)/src/ \
+MAIN_CPPFLAGS =    -I$(top_srcdir)/src/ \
                     -I$(top_srcdir)/src/Library \
                     -I$(top_srcdir)/googletest/googletest/include \
                     -I$(top_srcdir)/googletest/googletest -pthread  \
                     $(VC2REFERENCE_CFLAGS) \
 	                $(BOOST_CFLAGS)
 
-MAIN_LDFLAGS := -pthread
+MAIN_LDFLAGS = -pthread
 
 check_PROGRAMS = arrays quantisation dataunit utils
 
