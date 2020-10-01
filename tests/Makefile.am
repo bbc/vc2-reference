@@ -17,28 +17,28 @@ MAIN_CPPFLAGS =    -I$(top_srcdir)/src/ \
                     $(VC2REFERENCE_CFLAGS) \
 	                $(BOOST_CFLAGS)
 
-MAIN_LDFLAGS = -pthread
+MAIN_LD_FLAGS = -pthread
 
 check_PROGRAMS = arrays quantisation dataunit utils
 
 arrays_SOURCES = Arrays.cpp
 arrays_LDADD = $(MAIN_LDADD)
-arrays_LDFLAGS = $(MAIN_LDFLAGS)
+arrays_LDFLAGS = $(MAIN_LD_FLAGS)
 arrays_CPPFLAGS = $(MAIN_CPPFLAGS)
 
 dataunit_SOURCES = DataUnit.cpp
 dataunit_LDADD = $(MAIN_LDADD)
-dataunit_LDFLAGS = $(MAIN_LDFLAGS)
+dataunit_LDFLAGS = $(MAIN_LD_FLAGS)
 dataunit_CPPFLAGS = $(MAIN_CPPFLAGS)
 
 quantisation_SOURCES = Quantisation.cpp
 quantisation_LDADD = $(MAIN_LDADD)
-quantisation_LDFLAGS = $(MAIN_LDFLAGS)
+quantisation_LDFLAGS = $(MAIN_LD_FLAGS)
 quantisation_CPPFLAGS = $(MAIN_CPPFLAGS)
 
 utils_SOURCES = Utils.cpp
 utils_LDADD = $(MAIN_LDADD)
-utils_LDFLAGS = $(MAIN_LDFLAGS)
+utils_LDFLAGS = $(MAIN_LD_FLAGS)
 utils_CPPFLAGS = $(MAIN_CPPFLAGS)
 
 TESTS = arrays quantisation dataunit utils
