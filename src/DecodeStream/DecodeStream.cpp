@@ -191,8 +191,8 @@ try { //Giant try block around all code to get error messages
   int chromaDepth           = 0;
   bool interlaced           = false;
   bool topFieldFirst        = false;
-  WaveletKernel kernel;
-  int waveletDepth;
+  WaveletKernel kernel      = NullKernel;
+  int waveletDepth          = -1;
   int ySlices;
   int xSlices;
   int compressedBytes;
