@@ -136,8 +136,8 @@ public:
   int height;
   ColourFormat chromaFormat;
   bool interlace;
-  bool topFieldFirst;
   FrameRate frameRate;
+  bool topFieldFirst;  
   unsigned int frameRateNumer;
   unsigned int frameRateDenom;
   int bitdepth;
