@@ -16,7 +16,7 @@ fi;
 
 AS_NANO(VC2REFERENCE_CVS=no,VC2REFERENCE_CVS=yes)
 
-AM_INIT_AUTOMAKE([1.11 silent-rules])
+AM_INIT_AUTOMAKE([1.11 silent-rules subdir-objects])
 AM_SILENT_RULES([yes])
 
 # Version number that will be appended to the library filename
@@ -24,15 +24,6 @@ VC2REFERENCE_MAJORMINOR=0.1
 AC_SUBST(VC2REFERENCE_MAJORMINOR)
 
 AC_CONFIG_HEADERS([config.h])
-
-# CURRENT, REVISION, AGE
-# - library source changed but interface the same -> increment REVISION
-# - interfaces added/removed/changed -> increment CURRENT, set REVISION = 0
-# - interfaces added -> increment AGE also
-# - interfaces removed -> set AGE = 0
-#    (AGE is the number of previous values of CURRENT that are compatible)
-VC2REFERENCE_LIBVERSION="0:0:0"
-AC_SUBST(VC2REFERENCE_LIBVERSION)
 
 AM_PROG_AR
 LT_PREREQ([2.2.6])

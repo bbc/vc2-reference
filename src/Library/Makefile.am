@@ -7,7 +7,6 @@ libVC2_la_LIBADD = \
 
 libVC2_la_LDFLAGS = \
 	-no-undefined \
-	-version-info $(VC2REFERENCE_LIBVERSION) \
 	$(VC2REFERENCE_LDFLAGS) \
 	-lpthread
 
