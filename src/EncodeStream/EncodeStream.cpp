@@ -383,36 +383,22 @@ try { //Giant try block around all code to get error messages
   const int ySlices = (paddedLumaHeight + yTransformSize - 1)/yTransformSize;
   const int xSlices = (paddedLumaWidth + xTransformSize - 1)/xTransformSize;
 
-
-  bool sliceSizeFailure = false;
-  if (paddedLumaHeight != (ySlices*yTransformSize) ) {
-    clog<<"Padded picture height is not divisible by slice height"<<endl;
-	  sliceSizeFailure = true;
-  } 
-  if (paddedLumaWidth != (xSlices*xTransformSize) ) {
-	  clog<<"Padded picture width is not divisible by slice width"<<endl;
-	  sliceSizeFailure = true;
-    }
-  if (paddedChromaHeight/ySlices < utils::pow(2,waveletDepth) ){
-	  clog<<"Chrominance component slice height is smaller than 2^waveletDepth"<<endl;
-	  sliceSizeFailure = true;
-  }
-  if (paddedChromaWidth/xSlices < utils::pow(2,waveletDepth) ){
-    clog<<"Chrominance component slice width is smaller than 2^waveletDepth"<<endl;
-	  sliceSizeFailure = true;
-  }
-
-  if (sliceSizeFailure){
-    if (
-      // Check transform at depth is possible for both width and height dimensions
-      waveletTransformIsPossible(waveletDepth, lumaWidth, chromaWidth) && 
-      waveletTransformIsPossible(waveletDepth, lumaHeight, chromaHeight)
-      ){
-        clog<<"Consider setting --hSlice (-a) to ";
-        clog<<suggestSliceSize(waveletDepth, lumaWidth, chromaWidth);
-        clog<<" and --vSlice (-u) to ";
-        clog<<suggestSliceSize(waveletDepth, lumaHeight, chromaHeight)<<"."<<endl;
-      }
+  if (
+    paddedLumaHeight != (ySlices*yTransformSize)||
+    paddedLumaWidth != (xSlices*xTransformSize) ||
+    paddedChromaHeight/ySlices < utils::pow(2,waveletDepth)||
+    paddedChromaWidth/xSlices < utils::pow(2,waveletDepth) )
+    {
+      if (
+        // Check transform at depth is possible for both width and height dimensions
+        waveletTransformIsPossible(waveletDepth, lumaWidth, chromaWidth) && 
+        waveletTransformIsPossible(waveletDepth, lumaHeight, chromaHeight)
+        ){
+          clog<<"Consider setting --hSlice (-a) to ";
+          clog<<suggestSliceSize(waveletDepth, lumaWidth, chromaWidth);
+          clog<<" and --vSlice (-u) to ";
+          clog<<suggestSliceSize(waveletDepth, lumaHeight, chromaHeight)<<"."<<endl;
+        }
       else{
         const int suggestedDepth = findMinimumPossibleDepth(lumaWidth, lumaHeight, chromaWidth, chromaHeight);
         clog<<"It is not possible to encode this input with a wavelet depth of "<<waveletDepth<<"."<<endl;
