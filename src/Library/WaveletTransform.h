@@ -32,6 +32,15 @@ std::istream& operator>>(std::istream& strm, WaveletKernel& kernel);
 // Return the size of a padded array given image size and wavelet depth.
 const int paddedSize(int size, int depth);
 
+// Check if a wavelet transform is possible with the given parameters
+const int waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma);
+
+// Find the minimum wavelet depth that can encode the image
+const int findMinimumPossibleDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight);
+
+// Calculate suggested slice size parameters for the user
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma);
+
 //Forward wavelet transform, including padding if necessary
 const Array2D waveletTransform(const Array2D& picture, WaveletKernel kernel, int depth);
 

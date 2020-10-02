@@ -11,11 +11,14 @@
 /************************************************************************/
 
 #include "WaveletTransform.h"
+#include "boost/integer/common_factor_rt.hpp"  // For gcd function
 
 #include <iostream>
 #include <string>
 #include <stdexcept> // For invalid_argument
 #include <cfloat> // For FLT_MAX in quantMatrix
+#include <algorithm> // For min
+#include <math.h> //for log2
 
 std::ostream& operator<<(std::ostream& os, WaveletKernel kernel) {
   const char* s;
@@ -88,6 +91,49 @@ const Array2D waveletPad(const Array2D& picture, int depth) {
     }
   }
   return padded;
+}
+
+const int waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma){
+  const int paddedLengthLuma = paddedSize(lengthLuma, waveletDepth);
+  const int paddedLengthChroma = paddedSize(lengthChroma, waveletDepth);
+
+  const int gcd = boost::integer::gcd(paddedLengthLuma, paddedLengthChroma);
+  const int minSliceSize = utils::pow(2,waveletDepth);
+
+  const int maximumSliceNumber = gcd / minSliceSize;
+
+  // If the maximum number of slices is less than 2, the transform is impossible at this depth
+  return maximumSliceNumber >= 2;
+}
+
+const int findMinimumPossibleDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight){
+
+  const int minDimension = std::min(std::min(lumaHeight, lumaWidth), std::min(chromaHeight, chromaWidth));
+
+  for (int depth = 1; depth<log2(minDimension); depth++){    
+    if (
+      // Check transform at depth is possible for both width and height dimensions
+      waveletTransformIsPossible(depth, lumaWidth, chromaWidth) && 
+      waveletTransformIsPossible(depth, lumaHeight, chromaHeight)
+      ){
+        return depth;
+      }
+  }
+  throw std::logic_error("It is not possible to encode this picture because of its dimensions.");
+  return -1;
+}
+
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma){
+  const int paddedLengthLuma = paddedSize(lengthLuma, waveletDepth);
+  const int paddedLengthChroma = paddedSize(lengthChroma, waveletDepth);
+
+  const int gcd = boost::integer::gcd(paddedLengthLuma, paddedLengthChroma);
+
+  // Currently will always be 1 or 2 based on subsampling mode
+  // But this calculation will work for arbitrary input sizes
+  const int suggestedSliceSize  = paddedLengthLuma/gcd;
+  
+  return suggestedSliceSize;
 }
 
 // Forward declarations of functions to implement a single wavelet level

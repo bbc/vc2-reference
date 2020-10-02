@@ -367,19 +367,65 @@ try { //Giant try block around all code to get error messages
   // Calculate number of slices per picture
   const int yTransformSize = ySize*utils::pow(2,waveletDepth);
   const int xTransformSize = xSize*utils::pow(2,waveletDepth);
-  const int pictureHeight = ( (interlaced) ? height/2 : height);
-  const int paddedPictureHeight = paddedSize(pictureHeight, waveletDepth);
-  const int paddedWidth = paddedSize(width, waveletDepth);
-  const int ySlices = (paddedPictureHeight + yTransformSize - 1)/yTransformSize;
-  const int xSlices = (paddedWidth + xTransformSize - 1)/xTransformSize;
-  if (paddedPictureHeight != (ySlices*yTransformSize) ) {
-    throw std::logic_error("Padded picture height is not divisible by slice height");
-	  return EXIT_FAILURE;
+  
+  const int lumaHeight = ( (interlaced) ? format.lumaHeight()/2 : format.lumaHeight());
+  const int chromaHeight = ( (interlaced) ? format.chromaHeight()/2 : format.chromaHeight());
+  
+  const int lumaWidth = format.lumaWidth();
+  const int chromaWidth = format.chromaWidth();
+
+  const int paddedLumaHeight = paddedSize(lumaHeight, waveletDepth);
+  const int paddedLumaWidth = paddedSize(format.lumaWidth(), waveletDepth);
+
+  const int paddedChromaHeight = paddedSize(chromaHeight, waveletDepth);
+  const int paddedChromaWidth = paddedSize(format.chromaWidth(), waveletDepth);
+  
+  const int ySlices = (paddedLumaHeight + yTransformSize - 1)/yTransformSize;
+  const int xSlices = (paddedLumaWidth + xTransformSize - 1)/xTransformSize;
+
+
+  bool sliceSizeFailure = false;
+  if (paddedLumaHeight != (ySlices*yTransformSize) ) {
+    clog<<"Padded picture height is not divisible by slice height"<<endl;
+	  sliceSizeFailure = true;
   } 
-  if (paddedWidth != (xSlices*xTransformSize) ) {
-    throw std::logic_error("Padded width is not divisible by slice width");
-	  return EXIT_FAILURE;
+  if (paddedLumaWidth != (xSlices*xTransformSize) ) {
+	  clog<<"Padded picture width is not divisible by slice width"<<endl;
+	  sliceSizeFailure = true;
     }
+  if (paddedChromaHeight/ySlices < utils::pow(2,waveletDepth) ){
+	  clog<<"Chrominance component slice height is smaller than 2^waveletDepth"<<endl;
+	  sliceSizeFailure = true;
+  }
+  if (paddedChromaWidth/xSlices < utils::pow(2,waveletDepth) ){
+    clog<<"Chrominance component slice width is smaller than 2^waveletDepth"<<endl;
+	  sliceSizeFailure = true;
+  }
+
+  if (sliceSizeFailure){
+    if (
+      // Check transform at depth is possible for both width and height dimensions
+      waveletTransformIsPossible(waveletDepth, lumaWidth, chromaWidth) && 
+      waveletTransformIsPossible(waveletDepth, lumaHeight, chromaHeight)
+      ){
+        clog<<"Consider setting --hSlice (-a) to ";
+        clog<<suggestSliceSize(waveletDepth, lumaWidth, chromaWidth);
+        clog<<" and --vSlice (-u) to ";
+        clog<<suggestSliceSize(waveletDepth, lumaHeight, chromaHeight)<<"."<<endl;
+      }
+      else{
+        const int suggestedDepth = findMinimumPossibleDepth(lumaWidth, lumaHeight, chromaWidth, chromaHeight);
+        clog<<"It is not possible to encode this input with a wavelet depth of "<<waveletDepth<<"."<<endl;
+        clog<<"Consider setting --waveletDepth (-d) to "<<suggestedDepth;
+        clog<<" and --hSlice (-a) to ";
+        clog<<suggestSliceSize(suggestedDepth, lumaWidth, chromaWidth);
+        clog<<" and --vSlice (-u) to ";
+        clog<<suggestSliceSize(suggestedDepth, lumaHeight, chromaHeight)<<"."<<endl;
+      }
+      
+    throw std::logic_error("The given waveletDepth, hSlice, and vSlice parameters cannot encode this input. See above for suggested parameters.");
+    return EXIT_FAILURE;
+  }
 
   if (verbose) {
     clog << "Vertical slices per picture          = " << ySlices << endl;
