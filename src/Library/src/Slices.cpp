@@ -205,6 +205,11 @@ namespace {
     const int yBits = luma_slice_bits(s.yuvSlice.y(), s.waveletDepth);
     const int uvSplitBits = utils::intlog2(8*sliceSize-7);
     const int uvBits = 8*sliceSize - 7 - uvSplitBits - yBits;
+    
+    if (uvBits < chroma_slice_bits(s.yuvSlice.c1(), s.yuvSlice.c2(), s.waveletDepth) ) {
+      throw std::logic_error("SliceIO, LD mode: Too many bytes for the U and V slices");
+    }
+
     stream << Bits(uvSplitBits, yBits);
 
     const int numberOfSubbands = 3*s.waveletDepth+1;
