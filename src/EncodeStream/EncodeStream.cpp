@@ -516,8 +516,17 @@ try { //Giant try block around all code to get error messages
       }
 
       if (verbose) clog << "Quantise transform coefficients" << endl;
-      const Picture quantisedSlices = quantise_transform_np(transform, qIndices, qMatrix);
-      
+
+      // Use LL (DC) subband prediction for LD mode only
+      Picture quantSlices;
+      if (mode == LD){
+        quantSlices = quantise_transform(transform, qIndices, qMatrix);
+      }
+      else{
+        quantSlices = quantise_transform_np(transform, qIndices, qMatrix);
+      }
+      const Picture quantisedSlices = quantSlices;
+
       if (output==QUANTISED) {
         //Write quantised transform output as 4 byte 2's comp values
         clog << "Writing quantised transform coefficients to output file" << endl;
