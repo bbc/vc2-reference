@@ -383,6 +383,9 @@ try { //Giant try block around all code to get error messages
   const int ySlices = (paddedLumaHeight + yTransformSize - 1)/yTransformSize;
   const int xSlices = (paddedLumaWidth + xTransformSize - 1)/xTransformSize;
 
+  // This implementation requires that all slice subbands are the same size and that they
+  // exactly divide the dimensions of all components. This is different to the standard
+  // which allows for varying slice subband sizes in 13.5.6.2 (Slice Subband Area)
   if (
     paddedLumaHeight != (ySlices*yTransformSize)||
     paddedLumaWidth != (xSlices*xTransformSize) ||
