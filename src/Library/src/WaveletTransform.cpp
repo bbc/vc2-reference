@@ -96,7 +96,7 @@ const Array2D waveletPad(const Array2D& picture, int depth) {
 // Check if a wavelet transform is possible with the given wavelet depth
 const bool waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma){
   
-  if (waveletDepth <= 0) return false;
+  if (waveletDepth <= 0 || waveletDepth > 31) return false;
 
   const int paddedLengthLuma = paddedSize(lengthLuma, waveletDepth);
   const int paddedLengthChroma = paddedSize(lengthChroma, waveletDepth);
@@ -114,11 +114,9 @@ const bool waveletTransformIsPossible(const int waveletDepth, const int lengthLu
 // Returns number of slices if a wavelet transform is possible with the given slice size for the given wavelet depth
 // Returns zero otherwise
 const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int nSize){
-  
+  if (waveletDepth <= 0 || waveletDepth > 31) return false;
   const int maxSlices = std::min(lengthLuma,lengthChroma)/utils::pow(2,waveletDepth);
-  if (waveletDepth <= 0) return false;
   if (nSize <= 0 || nSize > maxSlices) return false;
-  
   const int transformSize = nSize*utils::pow(2,waveletDepth);
   
   const int paddedLumaLength = paddedSize(lengthLuma, waveletDepth);
@@ -156,11 +154,13 @@ const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const i
 }
 
 // Suggests the nearest wavelet depth to the given wavelet depth that will encode for the given picture parameters (lowest first)
-const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, const int startingDepth){
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, int startingDepth){
 
   const int minDimension = std::min(std::min(lumaHeight, lumaWidth), std::min(chromaHeight, chromaWidth));
 
-  for (int n = 1, sgn = -1; n<log2(minDimension); n++, sgn*=-1){    
+  startingDepth = startingDepth > log2(minDimension) ? log2(minDimension) : startingDepth;
+
+  for (int n = 1, sgn = -1; n<2*log2(minDimension); n++, sgn*=-1){    
     const int delta = sgn * (n+1)/2;
     const int depth = startingDepth + delta;
     if (

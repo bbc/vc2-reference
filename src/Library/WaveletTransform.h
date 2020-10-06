@@ -40,7 +40,7 @@ const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const i
 
 // Suggest a wavelet depth that can encode the image
 const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight);
-const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, const int startingDepth);
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, int startingDepth);
 
 // Calculate suggested slice size parameters for the user
 const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma);
