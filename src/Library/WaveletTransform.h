@@ -32,14 +32,19 @@ std::istream& operator>>(std::istream& strm, WaveletKernel& kernel);
 // Return the size of a padded array given image size and wavelet depth.
 const int paddedSize(int size, int depth);
 
-// Check if a wavelet transform is possible with the given parameters
-const int waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma);
+// Check if a wavelet transform is possible with the given wavelet depth
+const bool waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma);
 
-// Find the minimum wavelet depth that can encode the image
-const int findMinimumPossibleDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight);
+// Checks if a wavelet transform is possible with the given slice size for the given wavelet depth 
+const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int nSize);
+
+// Suggest a wavelet depth that can encode the image
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight);
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, const int startingDepth);
 
 // Calculate suggested slice size parameters for the user
 const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma);
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int startingSliceSize);
 
 //Forward wavelet transform, including padding if necessary
 const Array2D waveletTransform(const Array2D& picture, WaveletKernel kernel, int depth);

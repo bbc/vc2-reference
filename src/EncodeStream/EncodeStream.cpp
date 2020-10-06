@@ -373,44 +373,33 @@ try { //Giant try block around all code to get error messages
   
   const int lumaWidth = format.lumaWidth();
   const int chromaWidth = format.chromaWidth();
-
-  const int paddedLumaHeight = paddedSize(lumaHeight, waveletDepth);
-  const int paddedLumaWidth = paddedSize(format.lumaWidth(), waveletDepth);
-
-  const int paddedChromaHeight = paddedSize(chromaHeight, waveletDepth);
-  const int paddedChromaWidth = paddedSize(format.chromaWidth(), waveletDepth);
   
-  const int ySlices = (paddedLumaHeight + yTransformSize - 1)/yTransformSize;
-  const int xSlices = (paddedLumaWidth + xTransformSize - 1)/xTransformSize;
+  const int ySlices = sliceSizeIsValid(waveletDepth, lumaHeight, chromaHeight, ySize);
+  const int xSlices = sliceSizeIsValid(waveletDepth, lumaWidth, chromaWidth, xSize);
 
   // This implementation requires that all slice subbands are the same size and that they
   // exactly divide the dimensions of all components. This is different to the standard
   // which allows for varying slice subband sizes in 13.5.6.2 (Slice Subband Area)
-  if (
-    paddedLumaHeight != (ySlices*yTransformSize)||
-    paddedLumaWidth != (xSlices*xTransformSize) ||
-    paddedChromaHeight/ySlices < utils::pow(2,waveletDepth)||
-    paddedChromaWidth/xSlices < utils::pow(2,waveletDepth) )
-    {
-      if (
-        // Check transform at depth is possible for both width and height dimensions
-        waveletTransformIsPossible(waveletDepth, lumaWidth, chromaWidth) && 
-        waveletTransformIsPossible(waveletDepth, lumaHeight, chromaHeight)
-        ){
-          clog<<"Consider setting --hSlice (-a) to ";
-          clog<<suggestSliceSize(waveletDepth, lumaWidth, chromaWidth);
-          clog<<" and --vSlice (-u) to ";
-          clog<<suggestSliceSize(waveletDepth, lumaHeight, chromaHeight)<<"."<<endl;
-        }
-      else{
-        const int suggestedDepth = findMinimumPossibleDepth(lumaWidth, lumaHeight, chromaWidth, chromaHeight);
-        clog<<"It is not possible to encode this input with a wavelet depth of "<<waveletDepth<<"."<<endl;
-        clog<<"Consider setting --waveletDepth (-d) to "<<suggestedDepth;
-        clog<<" and --hSlice (-a) to ";
-        clog<<suggestSliceSize(suggestedDepth, lumaWidth, chromaWidth);
+  if (ySlices == 0||xSlices == 0){
+    if (
+      // Check transform at depth is possible for both width and height dimensions
+      waveletTransformIsPossible(waveletDepth, lumaWidth, chromaWidth) && 
+      waveletTransformIsPossible(waveletDepth, lumaHeight, chromaHeight)
+      ){
+        clog<<"Consider setting --hSlice (-a) to ";
+        clog<<suggestSliceSize(waveletDepth, lumaWidth, chromaWidth, xSize);
         clog<<" and --vSlice (-u) to ";
-        clog<<suggestSliceSize(suggestedDepth, lumaHeight, chromaHeight)<<"."<<endl;
+        clog<<suggestSliceSize(waveletDepth, lumaHeight, chromaHeight, ySize)<<"."<<endl;
       }
+    else{
+      const int suggestedDepth = suggestWaveletDepth(lumaWidth, lumaHeight, chromaWidth, chromaHeight, waveletDepth);
+      clog<<"It is not possible to encode this input with a wavelet depth of "<<waveletDepth<<"."<<endl;
+      clog<<"Consider setting --waveletDepth (-d) to "<<suggestedDepth;
+      clog<<" and --hSlice (-a) to ";
+      clog<<suggestSliceSize(suggestedDepth, lumaWidth, chromaWidth, xSize);
+      clog<<" and --vSlice (-u) to ";
+      clog<<suggestSliceSize(suggestedDepth, lumaHeight, chromaHeight, ySize)<<"."<<endl;
+    }
       
     throw std::logic_error("The given waveletDepth, hSlice, and vSlice parameters cannot encode this input. See above for suggested parameters.");
     return EXIT_FAILURE;
