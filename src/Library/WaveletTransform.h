@@ -44,7 +44,7 @@ const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const i
 
 // Calculate suggested slice size parameters for the user
 const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma);
-const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int startingSliceSize);
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, int startingSliceSize);
 
 //Forward wavelet transform, including padding if necessary
 const Array2D waveletTransform(const Array2D& picture, WaveletKernel kernel, int depth);

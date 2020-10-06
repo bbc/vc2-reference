@@ -115,8 +115,9 @@ const bool waveletTransformIsPossible(const int waveletDepth, const int lengthLu
 // Returns zero otherwise
 const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int nSize){
   
+  const int maxSlices = std::min(lengthLuma,lengthChroma)/utils::pow(2,waveletDepth);
   if (waveletDepth <= 0) return false;
-  if (nSize <= 0) return false;
+  if (nSize <= 0 || nSize > maxSlices) return false;
   
   const int transformSize = nSize*utils::pow(2,waveletDepth);
   
@@ -124,7 +125,7 @@ const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const i
   const int paddedChromaLength = paddedSize(lengthChroma, waveletDepth);
   
   const int nSlices = (paddedLumaLength + transformSize - 1)/transformSize;
-  // std::cout<<paddedChromaLength<<", "<<nSlices<<", "<<paddedChromaLength/nSlices<<std::endl;
+
   if(
     paddedLumaLength%nSlices == 0 &&
     (paddedLumaLength/nSlices)%utils::pow(2,waveletDepth) == 0 &&
@@ -189,9 +190,11 @@ const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const i
 }
 
 // Suggests the closest slice size to the given slice size that will work for the picture
-const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int startingSliceSize){
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, int startingSliceSize){
 
   const int maxSlices = std::min(lengthLuma,lengthChroma)/utils::pow(2,waveletDepth);
+
+  startingSliceSize = startingSliceSize>maxSlices ? maxSlices : startingSliceSize;
 
   for (int n = 0, sgn = 1; n<2*maxSlices; n++, sgn*=-1){    
     const int delta = sgn * (n+1)/2;
