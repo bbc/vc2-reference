@@ -365,9 +365,6 @@ try { //Giant try block around all code to get error messages
   }
 
   // Calculate number of slices per picture
-  const int yTransformSize = ySize*utils::pow(2,waveletDepth);
-  const int xTransformSize = xSize*utils::pow(2,waveletDepth);
-  
   const int lumaHeight = ( (interlaced) ? format.lumaHeight()/2 : format.lumaHeight());
   const int chromaHeight = ( (interlaced) ? format.chromaHeight()/2 : format.chromaHeight());
   
