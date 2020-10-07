@@ -11,11 +11,14 @@
 /************************************************************************/
 
 #include "WaveletTransform.h"
+#include "boost/integer/common_factor_rt.hpp"  // For gcd function
 
 #include <iostream>
 #include <string>
 #include <stdexcept> // For invalid_argument
 #include <cfloat> // For FLT_MAX in quantMatrix
+#include <algorithm> // For min
+#include <math.h> //for log2
 
 std::ostream& operator<<(std::ostream& os, WaveletKernel kernel) {
   const char* s;
@@ -88,6 +91,120 @@ const Array2D waveletPad(const Array2D& picture, int depth) {
     }
   }
   return padded;
+}
+
+// Check if a wavelet transform is possible with the given wavelet depth
+const bool waveletTransformIsPossible(const int waveletDepth, const int lengthLuma, const int lengthChroma){
+  
+  if (waveletDepth <= 0 || waveletDepth > 31) return false;
+
+  const int paddedLengthLuma = paddedSize(lengthLuma, waveletDepth);
+  const int paddedLengthChroma = paddedSize(lengthChroma, waveletDepth);
+
+  const int gcd = boost::integer::gcd(paddedLengthLuma, paddedLengthChroma);
+  const int minSliceSize = utils::pow(2,waveletDepth);
+
+  const int maximumSliceNumber = gcd / minSliceSize;
+
+  // If the maximum number of slices is less than 2, the transform is impossible at this depth
+  return maximumSliceNumber >= 2;
+}
+
+
+// Returns number of slices if a wavelet transform is possible with the given slice size for the given wavelet depth
+// Returns zero otherwise
+const int sliceSizeIsValid(const int waveletDepth, const int lengthLuma, const int lengthChroma, const int nSize){
+  if (waveletDepth <= 0 || waveletDepth > 31) return false;
+  const int maxSlices = std::min(lengthLuma,lengthChroma)/utils::pow(2,waveletDepth);
+  if (nSize <= 0 || nSize > maxSlices) return false;
+  const int transformSize = nSize*utils::pow(2,waveletDepth);
+  
+  const int paddedLumaLength = paddedSize(lengthLuma, waveletDepth);
+  const int paddedChromaLength = paddedSize(lengthChroma, waveletDepth);
+  
+  const int nSlices = (paddedLumaLength + transformSize - 1)/transformSize;
+
+  if(
+    paddedLumaLength%nSlices == 0 &&
+    (paddedLumaLength/nSlices)%utils::pow(2,waveletDepth) == 0 &&
+    paddedChromaLength%nSlices == 0 &&
+    (paddedChromaLength/nSlices)%utils::pow(2,waveletDepth) == 0
+  ){
+    return nSlices;
+  }
+  else return false;
+}
+
+// Suggests the minimum wavelet depth that will encode for the given picture parameters
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight){
+
+  const int minDimension = std::min(std::min(lumaHeight, lumaWidth), std::min(chromaHeight, chromaWidth));
+
+  for (int depth = 1; depth<log2(minDimension); depth++){    
+    if (
+      // Check transform at depth is possible for both width and height dimensions
+      waveletTransformIsPossible(depth, lumaWidth, chromaWidth) && 
+      waveletTransformIsPossible(depth, lumaHeight, chromaHeight)
+      ){
+        return depth;
+      }
+  }
+  throw std::logic_error("It is not possible to encode this picture because of its dimensions.");
+  return -1;
+}
+
+// Suggests the nearest wavelet depth to the given wavelet depth that will encode for the given picture parameters (lowest first)
+const int suggestWaveletDepth(const int lumaWidth, const int lumaHeight, const int chromaWidth, const int chromaHeight, int startingDepth){
+
+  const int minDimension = std::min(std::min(lumaHeight, lumaWidth), std::min(chromaHeight, chromaWidth));
+
+  startingDepth = startingDepth > log2(minDimension) ? log2(minDimension) : startingDepth;
+
+  for (int n = 1, sgn = -1; n<2*log2(minDimension); n++, sgn*=-1){    
+    const int delta = sgn * (n+1)/2;
+    const int depth = startingDepth + delta;
+    if (
+      // Check transform at depth is possible for both width and height dimensions
+      waveletTransformIsPossible(depth, lumaWidth, chromaWidth) && 
+      waveletTransformIsPossible(depth, lumaHeight, chromaHeight)
+      ){
+        return depth;
+      }
+  }
+  throw std::logic_error("It is not possible to encode this picture because of its dimensions.");
+  return -1;
+}
+
+// Suggests the minimum slice size for a given depth
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma){
+  const int paddedLengthLuma = paddedSize(lengthLuma, waveletDepth);
+  const int paddedLengthChroma = paddedSize(lengthChroma, waveletDepth);
+
+  const int gcd = boost::integer::gcd(paddedLengthLuma, paddedLengthChroma);
+
+  // Currently will always be 1 or 2 based on subsampling mode
+  // But this calculation will work for arbitrary input sizes
+  const int suggestedSliceSize  = paddedLengthLuma/gcd;
+  
+  return suggestedSliceSize;
+}
+
+// Suggests the closest slice size to the given slice size that will work for the picture
+const int suggestSliceSize(const int waveletDepth, const int lengthLuma, const int lengthChroma, int startingSliceSize){
+
+  const int maxSlices = std::min(lengthLuma,lengthChroma)/utils::pow(2,waveletDepth);
+
+  startingSliceSize = startingSliceSize>maxSlices ? maxSlices : startingSliceSize;
+
+  for (int n = 0, sgn = 1; n<2*maxSlices; n++, sgn*=-1){    
+    const int delta = sgn * (n+1)/2;
+    const int testSliceSize = startingSliceSize + delta;
+
+    // Check transform at depth is possible for both width and height dimensions
+    if (sliceSizeIsValid(waveletDepth, lengthLuma, lengthChroma, testSliceSize)) return testSliceSize;
+  }
+  throw std::logic_error("It is not possible to encode this picture because of its dimensions.");
+  return -1;
 }
 
 // Forward declarations of functions to implement a single wavelet level
