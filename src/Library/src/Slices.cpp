@@ -356,6 +356,14 @@ namespace {
     if (vBytes < component_slice_bytes(s.yuvSlice.c2(), s.waveletDepth, scalar) ) {
       throw std::logic_error("SliceIO, HQ CBR mode: Too many bytes for the slice");
     }
+    if (vBytes/scalar > 255){
+      std::cout<<"The size of a slice component exceeds the maximum allowed length ("<<255*scalar<<" bytes) for this slice size scalar."<<std::endl;
+      std::cout<<"Consider making the following changes in order:"<<std::endl;
+      std::cout<<"\t1. Check that the compressedBytes argument is correct for your application; a typical compression ratio is 4."<<std::endl;
+      std::cout<<"\t2. Increase the number of slices (by decreasing --hSlice and --vSlice); a typical value of hSlice and vSlice is 2."<<std::endl;
+      std::cout<<"\t3. Increase the slice size scalar (--scalar); a typical scalar is in the range 1-10."<<std::endl;
+      throw std::logic_error("Slice component length exceeds 1 byte when divided by slice size scalar. See above for suggestions to prevent this.");
+    }
     stream << Bytes(1, vBytes/scalar);
     stream << vlc::bounded(8*vBytes);
     for (int band=0; band<numberOfSubbands; ++band) {
