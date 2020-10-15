@@ -374,6 +374,8 @@ try { //Giant try block around all code to get error messages
   const int ySlices = sliceSizeIsValid(waveletDepth, lumaHeight, chromaHeight, ySize);
   const int xSlices = sliceSizeIsValid(waveletDepth, lumaWidth, chromaWidth, xSize);
 
+  int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
+
   // This implementation requires that all slice subbands are the same size and that they
   // exactly divide the dimensions of all components. This is different to the standard
   // which allows for varying slice subband sizes in 13.5.6.2 (Slice Subband Area)
@@ -408,7 +410,7 @@ try { //Giant try block around all code to get error messages
     if (mode == HQ_CBR){
       // Calculate slice bytes numerator and denominator
       const utils::Rational sliceBytesNandD =
-        utils::rationalise((interlaced ? compressedBytes/2 : compressedBytes), (ySlices*xSlices));
+        utils::rationalise(pictureBytes, (ySlices*xSlices));
       const int SliceBytesNum = sliceBytesNandD.numerator;
       const int SliceBytesDenom = sliceBytesNandD.denominator;
       clog << "Slice bytes numerator                = " << SliceBytesNum << endl;
@@ -499,7 +501,6 @@ try { //Giant try block around all code to get error messages
       if (mode == HQ_CBR){
         // Choose quantisation indices to achieve a size of compressedBytes for the frame
         if (verbose) clog << "Determine quantisation indices" << endl;
-        const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
         // Calculate number of bytes for each slice
         bytes = slice_bytes(ySlices, xSlices, pictureBytes, sliceScalar);
         qIndices = quantIndicesCBR(transform, qMatrix, bytes, sliceScalar);
@@ -510,7 +511,6 @@ try { //Giant try block around all code to get error messages
       else if (mode == LD){
         // Choose quantisation indices to achieve a size of compressedBytes for the frame
         if (verbose) clog << "Determine quantisation indices" << endl;
-        const int pictureBytes = (interlaced ? compressedBytes/2 : compressedBytes);
         // Calculate number of bytes for each slice
         bytes = slice_bytes(ySlices, xSlices, pictureBytes, 1);
         qIndices = quantIndicesLD(transform, qMatrix, bytes);
@@ -595,33 +595,50 @@ try { //Giant try block around all code to get error messages
       if (output==STREAM) {
         const Slices outSlices(slices, waveletDepth, qIndices);
         unsigned long pictureNumber = utils::getPictureNumber(pic, frame, framePics);
-        const WrappedPicture outWrapped(pictureNumber,
-                                        kernel,
-                                        waveletDepth,
-                                        xSlices,
-                                        ySlices,
-                                        slicePrefix,
-                                        sliceScalar,
-                                        outSlices);
+        
 
         //Write packaged output
         if (verbose) clog << "Writing compressed output to file" << endl;
 
-        switch(mode){
-            case HQ_CBR: 
-              // Write output in HQ CBR mode
-              outStream << dataunitio::highQualityCBR(sliceBytes, slicePrefix, sliceScalar);
-              break;
-            case HQ_ConstQ: 
-              // Write output in HQ ConstQ mode
-              outStream << dataunitio::highQualityVBR(slicePrefix, sliceScalar);
-              break;
-            case LD: 
-              // Write output in LD mode
-              outStream << sliceio::lowDelay(sliceBytes);
-              break;
-          }
-        outStream << outWrapped;
+        if (mode==HQ_CBR) {
+          // Write output in HQ CBR mode
+          outStream << dataunitio::highQualityCBR(sliceBytes, slicePrefix, sliceScalar);
+          const WrappedPicture outWrapped(pictureNumber,
+                                          kernel,
+                                          waveletDepth,
+                                          xSlices,
+                                          ySlices,
+                                          slicePrefix,
+                                          sliceScalar,
+                                          outSlices);
+          outStream << outWrapped;
+        }
+        else if (mode == HQ_ConstQ){
+          // Write output in HQ ConstQ mode
+          outStream << dataunitio::highQualityVBR(slicePrefix, sliceScalar);
+          const WrappedPicture outWrapped(pictureNumber,
+                                          kernel,
+                                          waveletDepth,
+                                          xSlices,
+                                          ySlices,
+                                          slicePrefix,
+                                          sliceScalar,
+                                          outSlices);
+          outStream << outWrapped;
+        }
+        else if (mode == LD){
+          // Write output in LD mode
+          outStream << sliceio::lowDelay(sliceBytes);
+          const WrappedPicture outWrapped(pictureNumber,
+                                          kernel,
+                                          waveletDepth,
+                                          xSlices,
+                                          ySlices,
+                                          utils::rationalise(pictureBytes, (ySlices*xSlices)),
+                                          outSlices);
+          outStream << outWrapped;
+        }
+         
         if (!outStream) {
           cerr << "Failed to write output file \"" << outFileName << "\"" << endl;
 	        return EXIT_FAILURE;
