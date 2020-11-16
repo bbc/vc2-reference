@@ -4,9 +4,9 @@
 #* convert_from_16p2: A simple utility that converts from the raw format
 #*                    preferred by these reference programmes
 #*****************************************************************************
-#* Copyright (C) 2017 BBC
+#* Copyright (C) 2020 BBC
 #*
-#* Authors: James P. Weaver <james.barrett@bbc.co.uk>
+#* Authors: James P. Weaver <james.barrett@bbc.co.uk> and Galen Reich
 #*
 #* This program is free software; you can redistribute it and/or modify
 #* it under the terms of the GNU General Public License as published by
@@ -28,8 +28,6 @@
 
 if __name__ == "__main__":
     import argparse
-    import struct
-    import sys
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""\
 16p2 to yuv converter
@@ -38,8 +36,8 @@ if __name__ == "__main__":
 Input file should be in 16p2 format (as output by DecodeStream).
 ie. 16-bit yuv planar data samples with the active bits in the high order bits
 
-Output file will be in one of several formats depending on settings, the following
-table shows the ffmpeg pixel_format name for each of these formats:
+Output file will be in one of several formats depending on settings, the
+following table shows the ffmpeg pixel_format name for each of these formats:
 
  +-------------+--------------------+--------------------+
  | Active Bits | Colour Subsampling | ffmpeg format name |
@@ -66,15 +64,16 @@ table shows the ffmpeg pixel_format name for each of these formats:
 
     args = parser.parse_args()
 
-    f = open(args.infilename, "rb")
-
-    outfilename = args.infilename + ".yuv"
-
-    data = bytearray(f.read())
-    data = [ ((data[2*n+0] << 8) + (data[2*n+1]) ) >> (16 - args.bits) for n in range(0,len(data)//2) ]
-
-    of = open(outfilename, "wb")
-    if args.bits == 8:
-        of.write(struct.pack( "<" + ("B" * len(data)), *data))
-    else:
-        of.write(struct.pack( "<" + ("H" * len(data)), *data))
+    word = bytearray(2)
+    with open(args.infilename, "rb") as fi:
+        with open(args.infilename+'.yuv', "wb") as fo:
+            while True:
+                if fi.readinto(word) == 0:
+                    break
+                if args.bits == 8:
+                    fo.write(word[:1])
+                else:
+                    n = ((word[0] << 8) + word[1]) >> (16 - args.bits)
+                    word[1] = n >> 8
+                    word[0] = n & 0xFF
+                    fo.write(word)

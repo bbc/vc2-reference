@@ -4,9 +4,9 @@
 #* convert_to_16p2: A simple utility that converts to the raw format
 #*                  preferred by these reference programmes
 #*****************************************************************************
-#* Copyright (C) 2017 BBC
+#* Copyright (C) 2020 BBC
 #*
-#* Authors: James P. Weaver <james.barrett@bbc.co.uk>
+#* Authors: James P. Weaver <james.barrett@bbc.co.uk> and Galen Reich
 #*
 #* This program is free software; you can redistribute it and/or modify
 #* it under the terms of the GNU General Public License as published by
@@ -28,9 +28,6 @@
 
 if __name__ == "__main__":
     import argparse
-    import struct
-    import sys
-
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""\
 yuv to 16p2 converter
 ---------------------
@@ -66,19 +63,27 @@ ie. 16-bit yuv planar data samples with the active bits in the high order bits
 
     args = parser.parse_args()
 
-    f = open(args.infilename, "rb")
-
     outfilename = args.infilename + ".16p2"
-
-    data = bytearray(f.read())
-
-    if args.bits == 8:
-        data = struct.unpack("<" + ("B" * len(data)), data)
-    else:
-        data = struct.unpack("<" + ("H" * (len(data)//2)), data)
-
-    data = [ x << (16 - args.bits) for x in data ]
-    
-    data = b"".join(( b"%c%c" % ((x >> 8)&0xFF, x&0xFF) for x in data))
     of = open(outfilename, "wb")
-    of.write(data)
+
+    word = bytearray(2)
+    temp = bytearray(1)
+    with open(args.infilename, "rb") as fi:
+        with open(args.infilename+'.16p2', "wb") as fo:
+            while True:
+                if fi.readinto(word) == 0:
+                    break
+                if args.bits == 8:
+                    temp = word[1]
+                    word[1] = 0xFF
+
+                    fo.write(word)
+
+                    word[0] = temp
+                    fo.write(word)
+                else:
+                    n = ((word[1] << 8) + word[0]) << (16 - args.bits)
+
+                    word[0] = n >> 8
+                    word[1] = n & 0xFF
+                    fo.write(word)
